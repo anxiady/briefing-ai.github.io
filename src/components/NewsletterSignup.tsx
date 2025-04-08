@@ -40,7 +40,7 @@ const NewsletterSignup = () => {
         placeholder="Your email address"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="h-12 sm:flex-1 bg-white shadow-md border-2 border-briefing-blue/10 focus-visible:ring-2 focus-visible:ring-briefing-blue/40"
+        className="h-12 sm:flex-1 bg-white shadow-lg border-2 border-briefing-blue/10 focus-visible:ring-2 focus-visible:ring-briefing-blue/40 shadow-briefing-purple/30"
         required
       />
       <Button 
