@@ -16,8 +16,8 @@ const Index = () => {
           </div>
         </div>
         
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 max-w-4xl mx-auto leading-tight">
-          AI News You Can Actually Understand.
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 mx-auto leading-none whitespace-normal">
+          AI News Made Simple and Human.
         </h1>
         
         <p className="text-xl text-gray-600 mb-10 max-w-3xl mx-auto">
