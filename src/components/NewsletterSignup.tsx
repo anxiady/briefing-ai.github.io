@@ -34,7 +34,7 @@ const NewsletterSignup = () => {
   };
   
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 w-full max-w-md mx-auto">
+    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 w-full max-w-xl mx-auto">
       <Input
         type="email"
         placeholder="Your email address"
