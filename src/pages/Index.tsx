@@ -16,7 +16,12 @@ const Index = () => {
           </div>
         </div>
         
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 mx-auto leading-none whitespace-normal">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 mx-auto leading-none whitespace-normal" 
+            style={{
+              background: 'linear-gradient(to right, #4F46E5, #8B5CF6)',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent'
+            }}>
           AI News Made Simple and Human.
         </h1>
         
