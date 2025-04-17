@@ -5,7 +5,7 @@ const BackgroundGradient = () => {
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden">
       <div 
-        className="absolute -top-40 right-0 h-96 w-96 rounded-full bg-briefing-purple/20 blur-3xl animate-[move_10s_ease-in-out_infinite]"
+        className="absolute -top-40 right-0 h-96 w-96 rounded-full bg-briefing-purple/20 blur-3xl"
         style={{
           animation: 'move1 15s ease-in-out infinite'
         }}
@@ -22,7 +22,7 @@ const BackgroundGradient = () => {
           animation: 'move3 18s ease-in-out infinite'
         }}
       ></div>
-      <style jsx>{`
+      <style>{`
         @keyframes move1 {
           0%, 100% { transform: translate(0, 0) rotate(0deg); }
           50% { transform: translate(30px, 20px) rotate(10deg); }
