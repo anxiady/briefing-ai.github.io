@@ -59,50 +59,9 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
 
 const NewsletterSignup = () => {
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!email || !email.includes('@')) {
-      toast({
-        title: "Please enter a valid email",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    const formData = new FormData();
-    formData.append("form-name", "newsletter");
-    formData.append("email", email);
-
-    fetch("/", {
-      method: "POST",
-      body: formData,
-    })
-      .then(() => {
-        toast({
-          title: "Success!",
-          description: "You've been added to the newsletter.",
-        });
-        setEmail('');
-      })
-      .catch(() => {
-        toast({
-          title: "Error!",
-          description: "Something went wrong. Please try again.",
-          variant: "destructive",
-        });
-      })
-      .finally(() => setIsLoading(false));
-  };
 
   return (
     <form
@@ -110,7 +69,6 @@ const NewsletterSignup = () => {
       method="POST"
       data-netlify="true"
       netlify-honeypot="bot-field"
-      onSubmit={handleSubmit}
       className="flex flex-col sm:flex-row gap-3 w-full max-w-xl mx-auto"
     >
       <input type="hidden" name="form-name" value="newsletter" />
@@ -131,13 +89,13 @@ const NewsletterSignup = () => {
       />
       <Button 
         type="submit" 
-        disabled={isLoading}
         className="h-12 px-8 bg-gradient-to-r from-briefing-blue to-briefing-purple text-white hover:opacity-90 transition-opacity"
       >
-        {isLoading ? "Subscribing..." : "Get the newsletter"}
+        Get the newsletter
       </Button>
     </form>
   );
 };
 
 export default NewsletterSignup;
+
