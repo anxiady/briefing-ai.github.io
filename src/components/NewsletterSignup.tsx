@@ -60,7 +60,8 @@ const NewsletterSignup = () => {
 
     if (!email || !email.includes('@')) {
       toast({
-        title: "Please enter a valid email",
+        title: t('newsletter.errorTitle'),
+        description: t('newsletter.errorInvalidEmail'),
         variant: "destructive",
       });
       return;
@@ -75,15 +76,15 @@ const NewsletterSignup = () => {
         body: formData,
       });
       toast({
-        title: "Success!",
-        description: "You've been added to the newsletter.",
+        title: t('newsletter.successTitle'),
+        description: t('newsletter.successDescription'),
       });
       setEmail('');
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again later.",
+        title: t('newsletter.errorTitle'),
+        description: t('newsletter.errorSubmitFail'),
         variant: "destructive",
       });
     }
@@ -125,4 +126,5 @@ const NewsletterSignup = () => {
 };
 
 export default NewsletterSignup;
+
 
