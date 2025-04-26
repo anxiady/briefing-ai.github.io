@@ -1,0 +1,17 @@
+
+{
+  "hero": {
+    "subtitle": "AI News Made Simple and Human.",
+    "description": "Delivered twice a week. No hype, no jargon — just the real story."
+  },
+  "benefits": {
+    "simple": "Explains AI like you're 12 (in a good way)",
+    "comprehensive": "Covers tools, models, funding, and startups",
+    "quick": "Takes 2 minutes to read"
+  },
+  "newsletter": {
+    "cta": "Get the newsletter",
+    "placeholder": "Your email address",
+    "join": "Join thousands of curious readers getting smarter about AI."
+  }
+}

@@ -1,0 +1,17 @@
+
+{
+  "hero": {
+    "subtitle": "让AI新闻变得简单易懂",
+    "description": "每周两次更新，没有炒作，没有专业术语 — 只有真实故事"
+  },
+  "benefits": {
+    "simple": "像讲给12岁孩子的AI解释（简单易懂）",
+    "comprehensive": "涵盖工具、模型、融资和创业",
+    "quick": "阅读只需2分钟"
+  },
+  "newsletter": {
+    "cta": "订阅简报",
+    "placeholder": "您的电子邮箱",
+    "join": "加入数千名正在了解AI的读者行列"
+  }
+}

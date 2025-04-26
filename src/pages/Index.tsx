@@ -1,10 +1,13 @@
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import BackgroundGradient from '@/components/BackgroundGradient';
 import NewsletterSignup from '@/components/NewsletterSignup';
 import BenefitItem from '@/components/BenefitItem';
 
 const Index = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 py-12">
       <BackgroundGradient />
@@ -22,11 +25,11 @@ const Index = () => {
               WebkitBackgroundClip: 'text',
               color: 'transparent'
             }}>
-          AI News Made Simple and Human.
+          {t('hero.subtitle')}
         </h1>
         
         <p className="text-xl text-gray-600 mb-10 max-w-3xl mx-auto">
-          Delivered twice a week. No hype, no jargon — just the real story.
+          {t('hero.description')}
         </p>
         
         <div className="mb-12">
@@ -34,13 +37,13 @@ const Index = () => {
         </div>
         
         <div className="grid sm:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto mb-10">
-          <BenefitItem text="Explains AI like you're 12 (in a good way)" />
-          <BenefitItem text="Covers tools, models, funding, and startups" />
-          <BenefitItem text="Takes 2 minutes to read" />
+          <BenefitItem text={t('benefits.simple')} />
+          <BenefitItem text={t('benefits.comprehensive')} />
+          <BenefitItem text={t('benefits.quick')} />
         </div>
         
         <div className="mt-12 text-sm text-gray-500">
-          Join thousands of curious readers getting smarter about AI.
+          {t('newsletter.join')}
         </div>
       </div>
     </div>
