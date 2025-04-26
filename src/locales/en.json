@@ -2,10 +2,11 @@
     "newsletter": {
       "placeholder": "Your email address",
       "cta": "Get the newsletter",
-      "successTitle": "Success!",
-      "successDescription": "You've been added to the newsletter.",
       "errorTitle": "Error",
       "errorInvalidEmail": "Please enter a valid email address.",
-      "errorSubmitFail": "Something went wrong. Please try again later."
+      "errorSubmitFail": "Something went wrong. Please try again later.",
+      "successTitle": "Success!",
+      "successDescription": "You've been added to the newsletter."
     }
   }
+  

@@ -1,13 +1,12 @@
 {
     "newsletter": {
       "placeholder": "请输入你的邮箱地址",
-      "cta": "订阅新闻简报"
-    },
-    "toasts": {
-      "success_title": "订阅成功！",
-      "success_description": "你已成功加入 Briefing AI 邮件列表。",
-      "error_title": "发生错误",
-      "error_description": "请稍后重试。",
-      "invalid_email_title": "请输入有效的邮箱地址"
+      "cta": "订阅新闻简报",
+      "errorTitle": "错误",
+      "errorInvalidEmail": "请输入有效的邮箱地址。",
+      "errorSubmitFail": "提交失败，请稍后再试。",
+      "successTitle": "成功！",
+      "successDescription": "你已成功订阅 Briefing AI。"
     }
   }
+  
