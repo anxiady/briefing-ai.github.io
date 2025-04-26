@@ -12,6 +12,11 @@
   "newsletter": {
     "cta": "订阅简报",
     "placeholder": "您的电子邮箱",
-    "join": "加入数千名正在了解AI的读者行列"
+    "join": "加入数千名正在了解AI的读者行列",
+    "errorTitle": "错误",
+    "errorInvalidEmail": "请输入有效的邮箱地址。",
+    "errorSubmitFail": "提交失败，请稍后再试。",
+    "successTitle": "成功！",
+    "successDescription": "你已成功订阅 Briefing AI。"
   }
 }

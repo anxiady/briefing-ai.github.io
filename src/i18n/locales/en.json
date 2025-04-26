@@ -12,6 +12,11 @@
   "newsletter": {
     "cta": "Get the newsletter",
     "placeholder": "Your email address",
-    "join": "Join thousands of curious readers getting smarter about AI."
+    "join": "Join thousands of curious readers getting smarter about AI.",
+    "errorTitle": "Error",
+    "errorInvalidEmail": "Please enter a valid email address.",
+    "errorSubmitFail": "Something went wrong. Please try again later.",
+    "successTitle": "Success!",
+    "successDescription": "You've been added to the newsletter."
   }
 }
