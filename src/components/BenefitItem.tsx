@@ -8,11 +8,11 @@ interface BenefitItemProps {
 
 const BenefitItem: React.FC<BenefitItemProps> = ({ text }) => {
   return (
-    <div className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
-      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-gradient-to-r from-briefing-blue to-briefing-purple flex items-center justify-center mr-2">
-        <Check className="w-3 h-3 text-white" />
+    <div className="flex items-center p-1.5 rounded-lg transition-colors">
+      <div className="flex-shrink-0 w-4 h-4 rounded-full bg-gradient-to-r from-briefing-blue/40 to-briefing-purple/40 flex items-center justify-center mr-1.5">
+        <Check className="w-2.5 h-2.5 text-white/90" />
       </div>
-      <span className="text-xs sm:text-sm text-gray-700">{text}</span>
+      <span className="text-xs text-gray-500">{text}</span>
     </div>
   );
 };
