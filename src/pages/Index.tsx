@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import BackgroundGradient from '@/components/BackgroundGradient';
@@ -31,18 +32,19 @@ const Index = () => {
           {t('hero.description')}
         </p>
         
-      <div className="mb-8">
-        <NewsletterSignup />
-      </div>
-      
-      <div className="grid sm:grid-cols-3 gap-3 sm:gap-4 max-w-5xl mx-auto mb-8">
-        <BenefitItem text={t('benefits.simple')} />
-        <BenefitItem text={t('benefits.comprehensive')} />
-        <BenefitItem text={t('benefits.quick')} />
-      </div>
-      
-      <div className="mt-8 text-sm text-gray-500">
-        {t('newsletter.join')}
+        <div className="mb-12">
+          <NewsletterSignup />
+        </div>
+        
+        <div className="grid sm:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto mb-10">
+          <BenefitItem text={t('benefits.simple')} />
+          <BenefitItem text={t('benefits.comprehensive')} />
+          <BenefitItem text={t('benefits.quick')} />
+        </div>
+        
+        <div className="mt-12 text-sm text-gray-500">
+          {t('newsletter.join')}
+        </div>
       </div>
     </div>
   );
