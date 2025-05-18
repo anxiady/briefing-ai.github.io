@@ -36,10 +36,12 @@ const Index = () => {
           <NewsletterSignup />
         </div>
         
-        <div className="grid sm:grid-cols-3 gap-2 sm:gap-4 max-w-5xl mx-auto mb-8 opacity-80 flex justify-center">
-          <BenefitItem text={t('benefits.simple')} />
-          <BenefitItem text={t('benefits.comprehensive')} />
-          <BenefitItem text={t('benefits.quick')} />
+        <div className="flex justify-center mb-8">
+          <div className="grid sm:grid-cols-3 gap-4 opacity-80">
+            <BenefitItem text={t('benefits.simple')} />
+            <BenefitItem text={t('benefits.comprehensive')} />
+            <BenefitItem text={t('benefits.quick')} />
+          </div>
         </div>
         
         <div className="mt-6 text-xs text-gray-500">
