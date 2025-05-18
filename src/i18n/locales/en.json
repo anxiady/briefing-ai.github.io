@@ -17,6 +17,9 @@
     "errorInvalidEmail": "Please enter a valid email address.",
     "errorSubmitFail": "Something went wrong. Please try again later.",
     "successTitle": "Success!",
-    "successDescription": "You've been added to the newsletter."
+    "successDescription": "You've been added to the newsletter.",
+    "languagePreference": "Please select your preferred language",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
   }
 }

@@ -32,17 +32,17 @@ const Index = () => {
           {t('hero.description')}
         </p>
         
-        <div className="mb-12">
+        <div className="mb-10">
           <NewsletterSignup />
         </div>
         
-        <div className="grid sm:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto mb-10">
+        <div className="grid sm:grid-cols-3 gap-2 sm:gap-4 max-w-5xl mx-auto mb-8 opacity-80">
           <BenefitItem text={t('benefits.simple')} />
           <BenefitItem text={t('benefits.comprehensive')} />
           <BenefitItem text={t('benefits.quick')} />
         </div>
         
-        <div className="mt-12 text-sm text-gray-500">
+        <div className="mt-6 text-xs text-gray-500">
           {t('newsletter.join')}
         </div>
       </div>
