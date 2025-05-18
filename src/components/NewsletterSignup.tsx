@@ -107,12 +107,12 @@ const NewsletterSignup = () => {
           placeholder={t('newsletter.placeholder')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-14 text-lg sm:flex-1 bg-white shadow-[0_4px_12px_-2px_rgba(142,86,246,0.35),0_2px_6px_-2px_rgba(142,86,246,0.2)] border-2 border-briefing-blue/10 focus-visible:ring-2 focus-visible:ring-briefing-blue/40"
+          className="bg-white shadow-[0_4px_12px_-2px_rgba(142,86,246,0.35),0_2px_6px_-2px_rgba(142,86,246,0.2)] border-2 border-briefing-blue/10 focus-visible:ring-2 focus-visible:ring-briefing-blue/40"
           required
         />
         <Button 
           type="submit" 
-          className="h-14 px-8 text-lg bg-gradient-to-r from-briefing-blue to-briefing-purple text-white hover:opacity-90 transition-opacity"
+          className="px-8 bg-gradient-to-r from-briefing-blue to-briefing-purple text-white hover:opacity-90 transition-opacity"
         >
           {t('newsletter.cta')}
         </Button>
@@ -126,22 +126,22 @@ const NewsletterSignup = () => {
             </AlertDialogTitle>
           </AlertDialogHeader>
           
-          <div className="py-4">
+          <div className="py-2">
             <RadioGroup 
               value={selectedLanguage} 
               onValueChange={setSelectedLanguage}
-              className="flex flex-col space-y-4"
+              className="flex flex-col space-y-2"
             >
-              <div className="flex items-center space-x-2 rounded-md border p-4 hover:bg-slate-100 transition-colors">
+              <div className="flex items-center space-x-2 rounded-md border p-3 hover:bg-slate-50 transition-colors">
                 <RadioGroupItem value="en" id="en" />
-                <Label htmlFor="en" className="flex-1 cursor-pointer font-medium">
+                <Label htmlFor="en" className="flex-1 cursor-pointer">
                   English
                 </Label>
               </div>
               
-              <div className="flex items-center space-x-2 rounded-md border p-4 hover:bg-slate-100 transition-colors">
+              <div className="flex items-center space-x-2 rounded-md border p-3 hover:bg-slate-50 transition-colors">
                 <RadioGroupItem value="zh" id="zh" />
-                <Label htmlFor="zh" className="flex-1 cursor-pointer font-medium">
+                <Label htmlFor="zh" className="flex-1 cursor-pointer">
                   中文 (Mandarin)
                 </Label>
               </div>
