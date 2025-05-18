@@ -36,7 +36,7 @@ const Index = () => {
           <NewsletterSignup />
         </div>
         
-        <div className="grid sm:grid-cols-3 gap-2 sm:gap-4 max-w-5xl mx-auto mb-8 opacity-80">
+        <div className="grid sm:grid-cols-3 gap-2 sm:gap-4 max-w-5xl mx-auto mb-8 opacity-80 flex justify-center">
           <BenefitItem text={t('benefits.simple')} />
           <BenefitItem text={t('benefits.comprehensive')} />
           <BenefitItem text={t('benefits.quick')} />

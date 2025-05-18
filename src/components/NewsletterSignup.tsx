@@ -24,7 +24,7 @@ const NewsletterSignup = () => {
   const [isLanguageDialogOpen, setIsLanguageDialogOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const { toast } = useToast();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const validateEmail = (email: string) => {
     if (!email || !email.includes('@')) {
@@ -58,9 +58,6 @@ const NewsletterSignup = () => {
         method: 'POST',
         body: formData,
       });
-
-      // Set user's preferred language
-      i18n.changeLanguage(selectedLanguage);
 
       toast({
         title: t('newsletter.successTitle'),
