@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard } from 'lucide-react';
+import { Radio } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 import NewsletterSignup from '@/components/NewsletterSignup';
 import BenefitItem from '@/components/BenefitItem';
@@ -21,10 +21,10 @@ const Index = () => {
           </div>
           <Link
             to="/dashboard"
-            className="flex items-center gap-2 px-4 py-2 bg-briefing-blue text-white rounded-full text-sm font-medium shadow-sm hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-briefing-blue to-briefing-purple text-white rounded-full text-sm font-medium shadow-sm hover:opacity-90 transition-opacity"
           >
-            <LayoutDashboard size={16} />
-            Dashboard
+            <Radio size={16} />
+            Situation Monitor
           </Link>
         </div>
         
