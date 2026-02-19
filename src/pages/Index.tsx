@@ -1,6 +1,8 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { LayoutDashboard } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 import NewsletterSignup from '@/components/NewsletterSignup';
 import BenefitItem from '@/components/BenefitItem';
@@ -13,10 +15,17 @@ const Index = () => {
       <BackgroundGradient />
       
       <div className="w-full max-w-5xl mx-auto text-center z-10">
-        <div className="mb-8 inline-block">
+        <div className="mb-8 flex items-center justify-center gap-4">
           <div className="px-3 py-1 bg-white/90 rounded-full text-sm font-medium text-briefing-blue border border-briefing-blue/10 shadow-sm">
             briefing.ai
           </div>
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 px-4 py-2 bg-briefing-blue text-white rounded-full text-sm font-medium shadow-sm hover:bg-blue-700 transition-colors"
+          >
+            <LayoutDashboard size={16} />
+            Dashboard
+          </Link>
         </div>
         
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 mx-auto leading-none whitespace-normal" 
