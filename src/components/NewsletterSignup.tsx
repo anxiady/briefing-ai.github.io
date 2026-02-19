@@ -104,7 +104,7 @@ const NewsletterSignup = () => {
           placeholder={t('newsletter.placeholder')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="bg-white shadow-[0_4px_12px_-2px_rgba(142,86,246,0.35),0_2px_6px_-2px_rgba(142,86,246,0.2)] border-2 border-briefing-blue/10 focus-visible:ring-2 focus-visible:ring-briefing-blue/40"
+          className="bg-white/10 text-white placeholder:text-gray-400 shadow-[0_4px_12px_-2px_rgba(142,86,246,0.35),0_2px_6px_-2px_rgba(142,86,246,0.2)] border-2 border-briefing-blue/30 focus-visible:ring-2 focus-visible:ring-briefing-blue/40"
           required
         />
         <Button 
@@ -129,14 +129,14 @@ const NewsletterSignup = () => {
               onValueChange={setSelectedLanguage}
               className="flex flex-col space-y-2"
             >
-              <div className="flex items-center space-x-2 rounded-md border p-3 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center space-x-2 rounded-md border border-white/10 p-3 hover:bg-white/10 transition-colors">
                 <RadioGroupItem value="en" id="en" />
                 <Label htmlFor="en" className="flex-1 cursor-pointer">
                   English
                 </Label>
               </div>
               
-              <div className="flex items-center space-x-2 rounded-md border p-3 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center space-x-2 rounded-md border border-white/10 p-3 hover:bg-white/10 transition-colors">
                 <RadioGroupItem value="zh" id="zh" />
                 <Label htmlFor="zh" className="flex-1 cursor-pointer">
                   中文 (Mandarin)
