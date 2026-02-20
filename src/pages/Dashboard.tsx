@@ -1,9 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, LayoutDashboard, Activity, Settings, Flame, MessageCircle, TrendingUp, ExternalLink, Globe, ChevronRight } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, Activity, Settings, Flame, MessageCircle, TrendingUp, ExternalLink, Globe, ChevronRight, Zap } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 
+interface HeadlineItem {
+  title: string;
+  url: string;
+  domain: string;
+}
+
 const Dashboard = () => {
+  const [headlines, setHeadlines] = useState<HeadlineItem[]>([]);
+  const [headlinesLoading, setHeadlinesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHeadlines = async () => {
+      try {
+        const res = await fetch(
+          'https://api.gdeltproject.org/api/v2/doc/doc?query=sourcelang:english&timespan=24h&mode=artlist&maxrecords=8&format=json&sort=hybridrel'
+        );
+        if (res.ok) {
+          const ct = res.headers.get('content-type');
+          if (ct?.includes('application/json')) {
+            const data = await res.json();
+            if (data?.articles) {
+              setHeadlines(
+                data.articles.slice(0, 8).map((a: any) => ({
+                  title: a.title || '',
+                  url: a.url || '#',
+                  domain: a.domain || '',
+                }))
+              );
+            }
+          }
+        }
+      } catch { /* fail silently */ }
+      finally { setHeadlinesLoading(false); }
+    };
+    fetchHeadlines();
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden px-4 py-8">
       <BackgroundGradient />
@@ -33,36 +69,67 @@ const Dashboard = () => {
           Briefing AI Dashboard
         </h1>
 
-        {/* World Monitor Banner */}
-        <Link 
-          to="/monitor"
-          className="block mb-8 group"
-        >
-          <div className="bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-cyan-500/20 backdrop-blur-sm rounded-2xl p-6 border border-white/10 shadow-lg hover:shadow-xl hover:border-white/20 transition-all relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-cyan-500/5 group-hover:from-indigo-500/10 group-hover:to-cyan-500/10 transition-all"></div>
-            <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/10 rounded-xl">
-                  <Globe size={28} className="text-cyan-400" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-xl font-bold text-gray-100">World Monitor</h2>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400">Real-time global intelligence — news, markets, geopolitics, cyber threats & more</p>
-                </div>
+        {/* World Monitor Section */}
+        <div className="mb-8 bg-gradient-to-b from-white/[0.07] to-white/[0.03] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden">
+          {/* Header */}
+          <div className="p-5 border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-cyan-500/20 rounded-xl">
+                <Globe size={22} className="text-cyan-400" />
               </div>
-              <div className="flex items-center gap-2 text-briefing-purple group-hover:text-white transition-colors">
-                <span className="text-sm font-medium hidden sm:block">Open</span>
-                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-gray-100">World Monitor</h2>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">Top stories right now</p>
               </div>
             </div>
+            <Link 
+              to="/monitor"
+              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-briefing-blue to-briefing-purple text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Open Full Monitor
+              <ChevronRight size={16} />
+            </Link>
           </div>
-        </Link>
+
+          {/* Headlines Grid */}
+          <div className="p-5">
+            {headlinesLoading ? (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="h-12 bg-white/5 rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+            ) : headlines.length > 0 ? (
+              <div className="grid sm:grid-cols-2 gap-2.5">
+                {headlines.map((item, i) => (
+                  <a
+                    key={i}
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-2.5 p-3 rounded-lg hover:bg-white/5 transition-colors group"
+                  >
+                    <Zap size={12} className="text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[13px] text-gray-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
+                        {item.title}
+                      </p>
+                      <span className="text-[10px] text-gray-500">{item.domain}</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Unable to load headlines — <Link to="/monitor" className="text-briefing-purple hover:underline">open full monitor</Link></p>
+            )}
+          </div>
+        </div>
 
         {/* Dashboard Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
