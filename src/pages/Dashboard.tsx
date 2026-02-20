@@ -71,7 +71,7 @@ const TRACKED_TERMS: { term: string; display: string; baseline: number }[] = [
 ];
 
 const MIN_SPIKE_MENTIONS = 3;
-const MIN_SPIKE_MULTIPLIER = 2.5;
+const MIN_SPIKE_MULTIPLIER = 2.0;
 const MIN_SOURCES = 2;
 
 function detectKeywordSpikes(articles: GdeltArticle[]): KeywordSpike[] {
@@ -98,9 +98,8 @@ function detectKeywordSpikes(articles: GdeltArticle[]): KeywordSpike[] {
 
     if (count < MIN_SPIKE_MENTIONS || uniqueSources < MIN_SOURCES) continue;
 
-    // Scale baseline to 2-hour window (baseline is per-day rough estimate)
-    const baselineFor2h = tracked.baseline * (2 / 24);
-    const multiplier = baselineFor2h > 0 ? count / baselineFor2h : count * 10;
+    // Baseline is daily estimate — compare against it directly (24h window)
+    const multiplier = tracked.baseline > 0 ? count / tracked.baseline : count * 10;
 
     if (multiplier < MIN_SPIKE_MULTIPLIER) continue;
 
@@ -115,7 +114,7 @@ function detectKeywordSpikes(articles: GdeltArticle[]): KeywordSpike[] {
       displayTerm: tracked.display,
       count,
       uniqueSources,
-      baselineEstimate: baselineFor2h,
+      baselineEstimate: tracked.baseline,
       multiplier: Math.round(multiplier * 10) / 10,
       confidence,
       headlines: matchingHeadlines.slice(0, 6),
@@ -186,8 +185,16 @@ const Dashboard = () => {
     const fetchAndAnalyze = async () => {
       setSpikeLoading(true);
       try {
-        const query = 'sourcelang:english';
-        const url = `${GDELT_API}?query=${encodeURIComponent(query)}&timespan=2h&mode=artlist&maxrecords=75&format=json&sort=hybridrel`;
+        // Build a targeted query covering geopolitical/conflict/world topics
+        const topics = [
+          'trump', 'putin', 'zelensky', 'china', 'iran', 'gaza', 'ukraine',
+          'russia', 'nato', 'nuclear', 'tariff', 'sanctions', 'missile',
+          'bitcoin', 'election', 'ceasefire', 'hamas', 'hezbollah', 'houthi',
+          'taiwan', 'north korea', 'military', 'war', 'conflict', 'AI'
+        ];
+        const topicQuery = topics.map(t => `"${t}"`).join(' OR ');
+        const query = `sourcelang:english (${topicQuery})`;
+        const url = `${GDELT_API}?query=${encodeURIComponent(query)}&timespan=24h&mode=artlist&maxrecords=250&format=json&sort=hybridrel`;
         const res = await fetch(url);
         if (!res.ok) throw new Error('GDELT fetch failed');
         const data = await res.json();
@@ -272,7 +279,7 @@ const Dashboard = () => {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                   </span>
                 </div>
-                <p className="text-xs text-gray-500">Live keyword spike detection · GDELT 2h window</p>
+                <p className="text-xs text-gray-500">Live keyword spike detection · GDELT 24h window</p>
               </div>
             </div>
             <Link
@@ -303,7 +310,7 @@ const Dashboard = () => {
             </div>
           ) : spikes.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-gray-500 text-sm">No keyword spikes detected in the last 2 hours.</p>
+              <p className="text-gray-500 text-sm">No keyword spikes detected in the last 24 hours.</p>
               <p className="text-gray-600 text-xs mt-1">Signals appear when a term exceeds {MIN_SPIKE_MULTIPLIER}× its baseline frequency across multiple sources.</p>
             </div>
           ) : (
@@ -319,7 +326,7 @@ const Dashboard = () => {
                       <h3 className="text-base font-bold text-gray-100">
                         "{spike.displayTerm}" <span className="text-cyan-400 font-medium">Trending</span>
                       </h3>
-                      <span className="text-xs text-gray-400">— {spike.count} mentions in 2h</span>
+                      <span className="text-xs text-gray-400">— {spike.count} mentions in 24h</span>
                     </div>
                   </div>
 
