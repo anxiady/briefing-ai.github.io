@@ -185,19 +185,19 @@ const Dashboard = () => {
     const fetchAndAnalyze = async () => {
       setSpikeLoading(true);
       try {
-        // Build a targeted query covering geopolitical/conflict/world topics
-        const topics = [
-          'trump', 'putin', 'zelensky', 'china', 'iran', 'gaza', 'ukraine',
-          'russia', 'nato', 'nuclear', 'tariff', 'sanctions', 'missile',
-          'bitcoin', 'election', 'ceasefire', 'hamas', 'hezbollah', 'houthi',
-          'taiwan', 'north korea', 'military', 'war', 'conflict', 'AI'
-        ];
-        const topicQuery = topics.map(t => `"${t}"`).join(' OR ');
-        const query = `sourcelang:english (${topicQuery})`;
+        // Targeted query covering geopolitical/conflict/world topics
+        // NOTE: GDELT has a query length limit — keep to ~12 OR terms max
+        const query = 'sourcelang:english (trump OR iran OR ukraine OR nuclear OR china OR gaza OR nato OR russia OR sanctions OR tariff OR missile OR bitcoin)';
         const url = `${GDELT_API}?query=${encodeURIComponent(query)}&timespan=24h&mode=artlist&maxrecords=250&format=json&sort=hybridrel`;
         const res = await fetch(url);
-        if (!res.ok) throw new Error('GDELT fetch failed');
-        const data = await res.json();
+        if (!res.ok) throw new Error(`GDELT ${res.status}`);
+        const text = await res.text();
+        // GDELT sometimes returns error messages as plain text instead of JSON
+        if (!text.startsWith('{')) {
+          console.warn('GDELT non-JSON response:', text.slice(0, 200));
+          throw new Error('GDELT returned non-JSON: ' + text.slice(0, 100));
+        }
+        const data = JSON.parse(text);
         const articles: GdeltArticle[] = (data?.articles || []).map((a: any) => ({
           title: a.title || '',
           url: a.url || '',
