@@ -15,15 +15,15 @@ const Monitor = () => {
           <span>Back to Dashboard</span>
         </Link>
         <div className="px-3 py-1 bg-white/10 rounded-full text-xs font-medium text-briefing-purple border border-briefing-purple/30">
-          Situation Monitor
+          World Monitor
         </div>
       </div>
 
-      {/* Embedded Situation Monitor */}
+      {/* Embedded World Monitor */}
       <iframe
-        src="https://hipcityreg-situation-monitor.vercel.app/"
+        src="https://worldmonitor.app/"
         className="flex-1 w-full border-none"
-        title="Situation Monitor"
+        title="World Monitor"
         allow="clipboard-read; clipboard-write"
         loading="eager"
       />

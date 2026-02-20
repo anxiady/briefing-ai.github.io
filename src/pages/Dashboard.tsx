@@ -288,7 +288,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Right Column — Situation Monitor Sidebar */}
+          {/* Right Column — World Monitor Sidebar */}
           <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
             <div className="lg:sticky lg:top-8 bg-gradient-to-b from-white/[0.07] to-white/[0.03] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden">
               
@@ -297,7 +297,7 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Radio size={18} className="text-briefing-purple" />
-                    <h2 className="font-bold text-gray-100 text-sm">Situation Monitor</h2>
+                    <h2 className="font-bold text-gray-100 text-sm">World Monitor</h2>
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -373,7 +373,7 @@ const Dashboard = () => {
                   className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-briefing-blue to-briefing-purple text-white rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
                 >
                   <Globe size={14} />
-                  Open Full Situation Monitor
+                  Open Full World Monitor
                   <ChevronRight size={14} />
                 </Link>
               </div>
