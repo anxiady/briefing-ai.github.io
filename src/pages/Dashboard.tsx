@@ -263,101 +263,10 @@ const Dashboard = () => {
           Briefing AI Dashboard
         </h1>
 
-        {/* ===== Two-column layout: Intel sidebar left + main content right ===== */}
+        {/* ===== Two-column layout: main content left + Intel sidebar right ===== */}
         <div className="flex flex-col lg:flex-row gap-6">
 
-          {/* LEFT: 🎯 Intelligence Findings — compact sidebar */}
-          <div className="lg:w-80 xl:w-96 shrink-0">
-            <div className="bg-gradient-to-b from-white/[0.07] to-white/[0.03] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden lg:sticky lg:top-8">
-              {/* Header */}
-              <div className="px-4 py-3 border-b border-white/10">
-                <div className="flex items-center gap-2 mb-1">
-                  <Crosshair size={16} className="text-cyan-400" />
-                  <h2 className="text-sm font-bold text-gray-100">🎯 Intelligence Findings</h2>
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] text-gray-500">GDELT 24h · keyword spike detection</p>
-                  <Link
-                    to="/monitor"
-                    className="flex items-center gap-1 text-[10px] text-briefing-purple hover:text-indigo-300 transition-colors font-medium"
-                  >
-                    Full Monitor <ChevronRight size={12} />
-                  </Link>
-                </div>
-              </div>
-
-              {spikeLoading ? (
-                <div className="p-3 space-y-3">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="animate-pulse p-3 bg-white/5 rounded-lg space-y-2">
-                      <div className="h-3 bg-white/10 rounded w-24"></div>
-                      <div className="h-3 bg-white/5 rounded w-full"></div>
-                      <div className="h-2 bg-white/5 rounded w-16"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : spikes.length === 0 ? (
-                <div className="p-4 text-center">
-                  <p className="text-gray-500 text-xs">No spikes in the last 24h.</p>
-                </div>
-              ) : (
-                <div className="p-3 space-y-2 max-h-[calc(100vh-14rem)] overflow-y-auto scrollbar-thin">
-                  {spikes.map((spike, idx) => (
-                    <div key={idx} className="bg-white/[0.04] border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-                      {/* Spike header */}
-                      <div className="px-3 pt-3 pb-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[10px] font-semibold text-indigo-400">📊 Keyword Spike</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
-                            {spike.confidence}%
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm font-bold text-gray-100">"{spike.displayTerm}"</span>
-                          <span className="text-[10px] text-cyan-400 font-medium">Trending</span>
-                          <span className="text-[10px] text-gray-500">· {spike.count} in 24h</span>
-                        </div>
-                      </div>
-
-                      {/* Summary */}
-                      <div className="px-3 pb-2">
-                        <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-3">
-                          {buildSummary(spike.headlines)}
-                        </p>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="px-3 pb-2 flex items-center gap-2 text-[9px] text-gray-500">
-                        <span>{spike.uniqueSources} sources</span>
-                        <span>·</span>
-                        <span>{spike.multiplier}× baseline</span>
-                        <span>·</span>
-                        <span>{formatTime(spike.detectedAt)}</span>
-                      </div>
-
-                      {/* Expandable context */}
-                      <details className="group">
-                        <summary className="px-3 py-1.5 text-[9px] text-gray-500 cursor-pointer hover:text-gray-400 transition-colors border-t border-white/5 bg-white/[0.02]">
-                          Context ▸
-                        </summary>
-                        <div className="px-3 pb-2 pt-1 space-y-1 bg-white/[0.02] text-[10px]">
-                          <div><span className="text-yellow-400 font-semibold">Why: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.whyItMatters}</span></div>
-                          <div><span className="text-blue-400 font-semibold">Action: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.action}</span></div>
-                          <div><span className="text-gray-600 font-semibold">Note: </span><span className="text-gray-600">{SIGNAL_CONTEXT.keyword_spike.note}</span></div>
-                        </div>
-                      </details>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT: Main dashboard content */}
+          {/* LEFT: Main dashboard content */}
           <div className="flex-1 min-w-0">
 
             {/* World Monitor — Risk / Posture / Macro */}
@@ -556,6 +465,97 @@ const Dashboard = () => {
                   <ExternalLink size={14} />
                 </a>
               </div>
+            </div>
+          </div>
+
+          {/* RIGHT: 🎯 Intelligence Findings — sidebar */}
+          <div className="lg:w-96 xl:w-[26rem] shrink-0 order-first lg:order-last">
+            <div className="bg-gradient-to-b from-white/[0.07] to-white/[0.03] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden lg:sticky lg:top-8">
+              {/* Header */}
+              <div className="px-5 py-4 border-b border-white/10">
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <Crosshair size={20} className="text-cyan-400" />
+                  <h2 className="text-base font-bold text-gray-100">🎯 Intelligence Findings</h2>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">GDELT 24h · keyword spike detection</p>
+                  <Link
+                    to="/monitor"
+                    className="flex items-center gap-1 text-xs text-briefing-purple hover:text-indigo-300 transition-colors font-medium"
+                  >
+                    Full Monitor <ChevronRight size={14} />
+                  </Link>
+                </div>
+              </div>
+
+              {spikeLoading ? (
+                <div className="p-4 space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="animate-pulse p-4 bg-white/5 rounded-lg space-y-2">
+                      <div className="h-4 bg-white/10 rounded w-28"></div>
+                      <div className="h-3 bg-white/5 rounded w-full"></div>
+                      <div className="h-3 bg-white/5 rounded w-20"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : spikes.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-gray-500 text-sm">No spikes in the last 24h.</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto">
+                  {spikes.map((spike, idx) => (
+                    <div key={idx} className="bg-white/[0.04] border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-colors">
+                      {/* Spike header */}
+                      <div className="px-4 pt-4 pb-1.5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-indigo-400">📊 Keyword Spike</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
+                            {spike.confidence}%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-base font-bold text-gray-100">"{spike.displayTerm}"</span>
+                          <span className="text-xs text-cyan-400 font-medium">Trending</span>
+                          <span className="text-xs text-gray-500">· {spike.count} in 24h</span>
+                        </div>
+                      </div>
+
+                      {/* Summary */}
+                      <div className="px-4 pb-2.5">
+                        <p className="text-sm text-gray-300 leading-relaxed line-clamp-3">
+                          {buildSummary(spike.headlines)}
+                        </p>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="px-4 pb-2.5 flex items-center gap-2.5 text-xs text-gray-500">
+                        <span>{spike.uniqueSources} sources</span>
+                        <span>·</span>
+                        <span>{spike.multiplier}× baseline</span>
+                        <span>·</span>
+                        <span>{formatTime(spike.detectedAt)}</span>
+                      </div>
+
+                      {/* Expandable context */}
+                      <details className="group">
+                        <summary className="px-4 py-2 text-xs text-gray-500 cursor-pointer hover:text-gray-400 transition-colors border-t border-white/5 bg-white/[0.02]">
+                          Context ▸
+                        </summary>
+                        <div className="px-4 pb-3 pt-1.5 space-y-1.5 bg-white/[0.02] text-xs">
+                          <div><span className="text-yellow-400 font-semibold">Why: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.whyItMatters}</span></div>
+                          <div><span className="text-blue-400 font-semibold">Action: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.action}</span></div>
+                          <div><span className="text-gray-600 font-semibold">Note: </span><span className="text-gray-600">{SIGNAL_CONTEXT.keyword_spike.note}</span></div>
+                        </div>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
