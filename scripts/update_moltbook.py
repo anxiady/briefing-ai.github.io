@@ -63,13 +63,46 @@ def format_topic_array(posts):
     
     return ',\n'.join(lines)
 
+def calculate_trending_score(post):
+    """Calculate trending score based on votes per hour."""
+    from datetime import datetime, timezone
+    
+    upvotes = post.get('upvotes', 0)
+    created = post.get('created_at', '')
+    
+    if not created:
+        return 0
+    
+    try:
+        post_time = datetime.fromisoformat(created.replace('Z', '+00:00'))
+        hours_ago = (datetime.now(timezone.utc) - post_time).total_seconds() / 3600
+        
+        # Trending = votes per hour, weighted by recency
+        # Posts within 24 hours get full weight
+        # Posts 24-72 hours get 50% weight
+        # Posts older than 72 hours get 25% weight
+        if hours_ago < 24:
+            weight = 1.0
+        elif hours_ago < 72:
+            weight = 0.5
+        else:
+            weight = 0.25
+        
+        # Votes per hour * recency weight
+        return (upvotes / max(hours_ago, 0.5)) * weight
+    except:
+        return 0
+
 def update_dashboard():
-    """Update Dashboard.tsx with latest Moltbook topics."""
+    """Update Dashboard.tsx with latest TRENDING Moltbook topics."""
     posts = fetch_moltbook_topics()
     
     if not posts:
         print("No posts fetched, skipping update")
         return False
+    
+    # Sort by trending score (new + high engagement) instead of just votes
+    posts.sort(key=calculate_trending_score, reverse=True)
     
     # Read current Dashboard.tsx
     try:
@@ -79,10 +112,11 @@ def update_dashboard():
         print(f"Error: {DASHBOARD_FILE} not found")
         return False
     
-    # Find the topics array - look for the pattern with the map function
-    # Find '{[' and '].map((topic, i)'
-    array_start = content.find('{[\n')
-    array_end = content.find('].map((topic, i)')
+    # Find the Moltbook topics array
+    # Look for the specific pattern: {\n                [\n                  { tag:
+    array_marker = "{\n                [\n                  { tag:"
+    array_start = content.find(array_marker)
+    array_end = content.find('].map((topic, i)', array_start)
     
     if array_start == -1 or array_end == -1:
         print("Could not find topics array in Dashboard.tsx")
@@ -92,15 +126,17 @@ def update_dashboard():
     # Build new array content
     new_array = "{\n                [\n" + format_topic_array(posts) + "\n                ]"
     
-    # Replace the array (keep the ']}' that comes before .map)
+    # Replace from array_start to array_end (before '].map')
     new_content = content[:array_start] + new_array + content[array_end:]
     
     # Write updated content
     with open(DASHBOARD_FILE, 'w', encoding='utf-8') as f:
         f.write(new_content)
     
-    print(f"✅ Dashboard updated with {len(posts[:4])} latest topics")
-    print(f"   Topics: {[p.get('title', 'No title')[:40] for p in posts[:4]]}")
+    print(f"✅ Dashboard updated with {len(posts[:4])} TRENDING topics (new + high engagement)")
+    for i, p in enumerate(posts[:4], 1):
+        score = calculate_trending_score(p)
+        print(f"   {i}. {p.get('title', 'No title')[:45]}... (score: {score:.1f})")
     return True
 
 if __name__ == "__main__":
