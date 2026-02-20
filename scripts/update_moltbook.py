@@ -7,9 +7,8 @@ Fetches latest hot topics from Moltbook API and updates the dashboard component.
 import json
 import urllib.request
 import re
-from datetime import datetime
-
 import os
+from datetime import datetime
 
 MOLTBOOK_API_KEY = os.environ.get("MOLTBOOK_API_KEY", "moltbook_sk_mwCjwMN5P50KQ7xilBjaNvPrYm0BJ2lt")
 API_URL = "https://www.moltbook.com/api/v1/feed"
@@ -33,54 +32,36 @@ def fetch_moltbook_topics():
         print(f"Error fetching Moltbook: {e}")
         return []
 
-def format_topic_card(post, index):
-    """Format a single topic card."""
-    title = post.get('title', 'No title')
-    author = post.get('author', {}).get('name', 'Unknown')
-    upvotes = post.get('upvotes', 0)
-    comments = post.get('comment_count', 0)
-    content = post.get('content', '')[:150].replace('\\n', ' ').replace('\\r', '')
+def get_tag_and_color(title, content):
+    """Determine tag and color based on content."""
+    text = (title + " " + content).lower()
     
-    # Determine category/tag based on content
-    category = "General"
-    cat_color = "bg-gray-100 text-gray-700"
+    if any(word in text for word in ['security', 'attack', 'vulnerability', 'hack', 'steal', 'credential']):
+        return 'Security', 'bg-red-500/20 text-red-300'
+    elif any(word in text for word in ['build', 'automation', 'workflow', 'skill', 'nightly', 'ship']):
+        return 'Autonomy', 'bg-green-500/20 text-green-300'
+    elif any(word in text for word in ['code', 'programming', 'developer', 'email', 'podcast', 'tts']):
+        return 'Tool Building', 'bg-blue-500/20 text-blue-300'
+    elif any(word in text for word in ['philosophy', 'ethics', 'think', 'quiet', 'operator']):
+        return 'Philosophy', 'bg-purple-500/20 text-purple-300'
+    else:
+        return 'General', 'bg-gray-500/20 text-gray-300'
+
+def format_topic_array(posts):
+    """Format topics as JavaScript array items."""
+    lines = []
+    for p in posts[:4]:
+        title = p.get('title', 'No title').replace('"', '\\"')
+        author = p.get('author', {}).get('name', 'Unknown')
+        upvotes = p.get('upvotes', 0)
+        comments = p.get('comment_count', 0)
+        content = p.get('content', '')[:120].replace('\\n', ' ').replace('\\r', '').replace('"', '\\"')
+        
+        tag, tagColor = get_tag_and_color(title, content)
+        
+        lines.append(f"                  {{ tag: '{tag}', tagColor: '{tagColor}', author: '{author}', title: '{title}', desc: '{content}...', votes: '+{upvotes}', comments: '{comments}' }}")
     
-    if any(word in title.lower() for word in ['security', 'attack', 'vulnerability', 'hack']):
-        category = "Security"
-        cat_color = "bg-red-100 text-red-700"
-    elif any(word in title.lower() for word in ['build', 'automation', 'workflow', 'skill']):
-        category = "Automation"
-        cat_color = "bg-green-100 text-green-700"
-    elif any(word in title.lower() for word in ['code', 'programming', 'developer']):
-        category = "Development"
-        cat_color = "bg-blue-100 text-blue-700"
-    elif any(word in title.lower() for word in ['philosophy', 'ethics', 'think']):
-        category = "Philosophy"
-        cat_color = "bg-purple-100 text-purple-700"
-    
-    return f'''            {{/* Topic {index} */}}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 {cat_color} text-xs font-medium rounded-full">{category}</span>
-                    <span className="text-xs text-gray-500">by {author}</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">{title}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{content}...</p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-orange-600">
-                      <TrendingUp size={16} />
-                      +{upvotes} votes
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-600">
-                      <MessageCircle size={16} />
-                      {comments} comments
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>'''
+    return ',\n'.join(lines)
 
 def update_dashboard():
     """Update Dashboard.tsx with latest Moltbook topics."""
@@ -90,12 +71,6 @@ def update_dashboard():
         print("No posts fetched, skipping update")
         return False
     
-    # Get top 4 posts
-    top_posts = posts[:4]
-    
-    # Generate new topic cards
-    topic_cards = "\n".join([format_topic_card(post, i+1) for i, post in enumerate(top_posts)])
-    
     # Read current Dashboard.tsx
     try:
         with open(DASHBOARD_FILE, 'r', encoding='utf-8') as f:
@@ -104,28 +79,28 @@ def update_dashboard():
         print(f"Error: {DASHBOARD_FILE} not found")
         return False
     
-    # Find and replace the topics section
-    # Pattern: {/* Topic 1 */} through {/* Topic 4 */} with all content between
-    pattern = r'            \{/?\* Topic 1 \*/?\}.*?\{/?\* Topic 4 \*/?\}'
+    # Find the topics array - look for the pattern with the map function
+    # Find '{[' and '].map((topic, i)'
+    array_start = content.find('{[\n')
+    array_end = content.find('].map((topic, i)')
     
-    replacement = topic_cards
+    if array_start == -1 or array_end == -1:
+        print("Could not find topics array in Dashboard.tsx")
+        print(f"array_start: {array_start}, array_end: {array_end}")
+        return False
     
-    new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+    # Build new array content
+    new_array = "{\n                [\n" + format_topic_array(posts) + "\n                ]"
     
-    # Also update the timestamp
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
-    new_content = re.sub(
-        r'Updated: .*? UTC',
-        f'Updated: {timestamp}',
-        new_content
-    )
+    # Replace the array (keep the ']}' that comes before .map)
+    new_content = content[:array_start] + new_array + content[array_end:]
     
     # Write updated content
     with open(DASHBOARD_FILE, 'w', encoding='utf-8') as f:
         f.write(new_content)
     
-    print(f"✅ Dashboard updated with {len(top_posts)} latest topics")
-    print(f"   Last updated: {timestamp}")
+    print(f"✅ Dashboard updated with {len(posts[:4])} latest topics")
+    print(f"   Topics: {[p.get('title', 'No title')[:40] for p in posts[:4]]}")
     return True
 
 if __name__ == "__main__":
