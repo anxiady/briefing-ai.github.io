@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Globe, BarChart3, Shield, Cpu, Zap, AlertTriangle,
   TrendingUp, TrendingDown, Activity, Rss, DollarSign, ExternalLink,
-  Crosshair, Lock
+  Crosshair, Lock, RefreshCw
 } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 
@@ -22,7 +22,6 @@ interface CryptoData {
   current_price: number;
   price_change_percentage_24h: number;
   image: string;
-  market_cap: number;
 }
 
 interface FearGreedData {
@@ -43,6 +42,7 @@ interface ThreatItem {
   threat: string;
   date_added: string;
   host: string;
+  tags: string[];
 }
 
 // ===== Config =====
@@ -55,17 +55,14 @@ const NEWS_CATEGORIES: Record<string, { label: string; color: string; bgColor: s
   geopolitics: { label: 'Geopolitics', color: 'text-purple-400', bgColor: 'bg-purple-500/20', query: '(sanctions OR diplomacy OR NATO OR UN OR geopolitics)' },
 };
 
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
 // ===== Helpers =====
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const formatPrice = (price: number) => {
   if (price >= 1) return `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return `$${price.toFixed(6)}`;
-};
-
-const formatMarketCap = (cap: number) => {
-  if (cap >= 1e12) return `$${(cap / 1e12).toFixed(2)}T`;
-  if (cap >= 1e9) return `$${(cap / 1e9).toFixed(1)}B`;
-  if (cap >= 1e6) return `$${(cap / 1e6).toFixed(1)}M`;
-  return `$${cap.toLocaleString()}`;
 };
 
 const formatVolume = (vol: number) => {
@@ -83,14 +80,6 @@ const getFearGreedColor = (value: number) => {
   return 'text-green-500';
 };
 
-const getFearGreedBg = (value: number) => {
-  if (value <= 25) return 'bg-red-500';
-  if (value <= 45) return 'bg-orange-400';
-  if (value <= 55) return 'bg-yellow-400';
-  if (value <= 75) return 'bg-green-400';
-  return 'bg-green-500';
-};
-
 // ===== Component =====
 const Dashboard = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -105,123 +94,124 @@ const Dashboard = () => {
   const [threatsLoading, setThreatsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Fetch news from GDELT
-  useEffect(() => {
-    const fetchNews = async () => {
-      try {
-        const allItems: NewsItem[] = [];
-        for (const [key, config] of Object.entries(NEWS_CATEGORIES)) {
-          try {
-            const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(config.query + ' sourcelang:english')}&timespan=24h&mode=artlist&maxrecords=5&format=json&sort=date`;
-            const res = await fetch(url);
-            if (!res.ok) continue;
-            const ct = res.headers.get('content-type');
-            if (!ct?.includes('application/json')) continue;
-            const data = await res.json();
-            if (data?.articles) {
-              data.articles.slice(0, 5).forEach((a: any) => {
-                allItems.push({
-                  title: a.title || '',
-                  link: a.url || '#',
-                  source: a.domain || 'Unknown',
-                  category: key,
-                });
+  // Fetch news from GDELT — staggered to avoid 429
+  const fetchNews = useCallback(async () => {
+    setNewsLoading(true);
+    try {
+      const allItems: NewsItem[] = [];
+      const categories = Object.entries(NEWS_CATEGORIES);
+
+      for (let i = 0; i < categories.length; i++) {
+        const [key, config] = categories[i];
+        try {
+          // Stagger requests by 800ms to avoid rate limiting
+          if (i > 0) await delay(800);
+          const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(config.query + ' sourcelang:english')}&timespan=24h&mode=artlist&maxrecords=5&format=json&sort=date`;
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const ct = res.headers.get('content-type');
+          if (!ct?.includes('application/json')) continue;
+          const data = await res.json();
+          if (data?.articles) {
+            data.articles.slice(0, 5).forEach((a: any) => {
+              allItems.push({
+                title: a.title || '',
+                link: a.url || '#',
+                source: a.domain || 'Unknown',
+                category: key,
               });
-            }
-          } catch { /* skip category */ }
-        }
-        setNews(allItems);
-        setLastUpdated(new Date());
-      } catch { /* fail silently */ }
-      finally { setNewsLoading(false); }
-    };
-    fetchNews();
-  }, []);
-
-  // Fetch crypto from CoinGecko
-  useEffect(() => {
-    const fetchCrypto = async () => {
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false');
-        if (res.ok) {
-          setCrypto(await res.json());
-        }
-      } catch { /* fail silently */ }
-      finally { setCryptoLoading(false); }
-    };
-    fetchCrypto();
-  }, []);
-
-  // Fetch Fear & Greed Index
-  useEffect(() => {
-    const fetchFG = async () => {
-      try {
-        const res = await fetch('https://api.alternative.me/fng/?limit=1');
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.data?.[0]) setFearGreed(data.data[0]);
-        }
-      } catch { /* fail silently */ }
-      finally { setFearGreedLoading(false); }
-    };
-    fetchFG();
-  }, []);
-
-  // Fetch Polymarket prediction markets
-  useEffect(() => {
-    const fetchPoly = async () => {
-      try {
-        const res = await fetch('https://gamma-api.polymarket.com/events?limit=6&active=true&closed=false&order=volume&ascending=false');
-        if (res.ok) {
-          const data = await res.json();
-          const events: PolymarketEvent[] = (data || []).slice(0, 6).map((e: any) => {
-            const market = e.markets?.[0];
-            let outcomes: string[] = [];
-            let outcomePrices: number[] = [];
-            try {
-              outcomes = JSON.parse(market?.outcomes || '[]');
-              outcomePrices = JSON.parse(market?.outcomePrices || '[]').map(Number);
-            } catch { /* skip parse */ }
-            return {
-              title: e.title || market?.question || '',
-              slug: e.slug || '',
-              volume: Number(market?.volume || e.volume || 0),
-              outcomes,
-              outcomePrices,
-            };
-          }).filter((e: PolymarketEvent) => e.title);
-          setPolymarkets(events);
-        }
-      } catch { /* fail silently */ }
-      finally { setPolyLoading(false); }
-    };
-    fetchPoly();
-  }, []);
-
-  // Fetch cyber threats from URLhaus
-  useEffect(() => {
-    const fetchThreats = async () => {
-      try {
-        const res = await fetch('https://urlhaus-api.abuse.ch/v1/urls/recent/limit/8/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.urls) {
-            setThreats(data.urls.slice(0, 8).map((u: any) => ({
-              url: u.url || '',
-              threat: u.threat || 'unknown',
-              date_added: u.date_added || '',
-              host: u.host || '',
-            })));
+            });
           }
-        }
-      } catch { /* fail silently */ }
-      finally { setThreatsLoading(false); }
-    };
-    fetchThreats();
+        } catch { /* skip category */ }
+      }
+      setNews(allItems);
+      setLastUpdated(new Date());
+    } catch { /* fail silently */ }
+    finally { setNewsLoading(false); }
   }, []);
+
+  // Fetch crypto from CoinGecko (CORS ✅)
+  const fetchCrypto = useCallback(async () => {
+    setCryptoLoading(true);
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false');
+      if (res.ok) setCrypto(await res.json());
+    } catch { /* fail silently */ }
+    finally { setCryptoLoading(false); }
+  }, []);
+
+  // Fetch Fear & Greed Index (CORS ✅)
+  const fetchFearGreed = useCallback(async () => {
+    setFearGreedLoading(true);
+    try {
+      const res = await fetch('https://api.alternative.me/fng/?limit=1');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.data?.[0]) setFearGreed(data.data[0]);
+      }
+    } catch { /* fail silently */ }
+    finally { setFearGreedLoading(false); }
+  }, []);
+
+  // Fetch Polymarket via CORS proxy
+  const fetchPolymarket = useCallback(async () => {
+    setPolyLoading(true);
+    try {
+      const targetUrl = encodeURIComponent('https://gamma-api.polymarket.com/events?limit=6&active=true&closed=false&order=volume&ascending=false');
+      const res = await fetch(`${CORS_PROXY}${targetUrl}`);
+      if (res.ok) {
+        const data = await res.json();
+        const events: PolymarketEvent[] = (data || []).slice(0, 6).map((e: any) => {
+          const market = e.markets?.[0];
+          let outcomes: string[] = [];
+          let outcomePrices: number[] = [];
+          try {
+            outcomes = JSON.parse(market?.outcomes || '[]');
+            outcomePrices = JSON.parse(market?.outcomePrices || '[]').map(Number);
+          } catch { /* skip parse */ }
+          return {
+            title: e.title || market?.question || '',
+            slug: e.slug || '',
+            volume: Number(market?.volume || e.volume || 0),
+            outcomes,
+            outcomePrices,
+          };
+        }).filter((e: PolymarketEvent) => e.title);
+        setPolymarkets(events);
+      }
+    } catch { /* fail silently */ }
+    finally { setPolyLoading(false); }
+  }, []);
+
+  // Fetch cyber threats via CORS proxy (URLhaus recent JSON)
+  const fetchThreats = useCallback(async () => {
+    setThreatsLoading(true);
+    try {
+      const targetUrl = encodeURIComponent('https://urlhaus.abuse.ch/downloads/json_recent/');
+      const res = await fetch(`${CORS_PROXY}${targetUrl}`);
+      if (res.ok) {
+        const data = await res.json();
+        // json_recent format: { "id": [{ ... }], ... }
+        const entries = Object.values(data).flat().slice(0, 8) as any[];
+        setThreats(entries.map((u: any) => ({
+          url: u.url || '',
+          threat: u.threat || 'unknown',
+          date_added: u.dateadded || '',
+          host: new URL(u.url || 'https://unknown').hostname,
+          tags: u.tags || [],
+        })));
+      }
+    } catch { /* fail silently */ }
+    finally { setThreatsLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    fetchNews();
+    fetchCrypto();
+    fetchFearGreed();
+    fetchPolymarket();
+    fetchThreats();
+  }, [fetchNews, fetchCrypto, fetchFearGreed, fetchPolymarket, fetchThreats]);
 
   const groupedNews = Object.keys(NEWS_CATEGORIES).reduce((acc, cat) => {
     acc[cat] = news.filter(n => n.category === cat);
@@ -278,7 +268,7 @@ const Dashboard = () => {
               ) : fearGreed ? (
                 <div className="flex items-center gap-1.5">
                   <span className={`text-sm font-bold ${getFearGreedColor(fgValue)}`}>{fearGreed.value}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${getFearGreedBg(fgValue)} bg-opacity-20 ${getFearGreedColor(fgValue)}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded bg-white/10 ${getFearGreedColor(fgValue)}`}>
                     {fearGreed.value_classification}
                   </span>
                 </div>
@@ -320,9 +310,15 @@ const Dashboard = () => {
                 <h2 className="font-bold text-gray-100 text-sm">Global News Feed</h2>
                 <span className="text-[10px] text-gray-500">GDELT</span>
               </div>
+              {newsLoading && (
+                <span className="text-[10px] text-yellow-400 flex items-center gap-1">
+                  <RefreshCw size={10} className="animate-spin" />
+                  Loading categories...
+                </span>
+              )}
             </div>
 
-            {newsLoading ? (
+            {newsLoading && news.length === 0 ? (
               <div className="space-y-3">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="bg-white/5 rounded-xl p-4 animate-pulse">
@@ -331,6 +327,11 @@ const Dashboard = () => {
                     <div className="h-4 bg-white/10 rounded w-3/4"></div>
                   </div>
                 ))}
+              </div>
+            ) : !newsLoading && news.length === 0 ? (
+              <div className="bg-white/5 rounded-xl p-8 text-center">
+                <AlertTriangle size={20} className="mx-auto mb-2 text-gray-500" />
+                <p className="text-sm text-gray-400">Unable to load news feed. Try refreshing the page.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -392,9 +393,7 @@ const Dashboard = () => {
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-[10px] text-gray-600 w-3 text-right">{i + 1}</span>
                         <img src={coin.image} alt={coin.symbol} className="w-4 h-4 rounded-full flex-shrink-0" />
-                        <div className="min-w-0">
-                          <span className="text-xs text-gray-200 font-medium truncate block">{coin.name}</span>
-                        </div>
+                        <span className="text-xs text-gray-200 font-medium truncate">{coin.name}</span>
                       </div>
                       <div className="text-right flex-shrink-0 ml-2">
                         <div className="text-xs text-gray-100 font-mono">{formatPrice(coin.current_price)}</div>
@@ -446,7 +445,9 @@ const Dashboard = () => {
                             {outcome}: {(market.outcomePrices[j] * 100).toFixed(0)}%
                           </span>
                         ))}
-                        <span className="text-[9px] text-gray-600 ml-auto">Vol: {formatVolume(market.volume)}</span>
+                        {market.volume > 0 && (
+                          <span className="text-[9px] text-gray-600 ml-auto">Vol: {formatVolume(market.volume)}</span>
+                        )}
                       </div>
                     </a>
                   ))}
@@ -481,11 +482,13 @@ const Dashboard = () => {
                         <p className="text-[11px] text-gray-300 truncate font-mono" title={t.url}>
                           {t.host}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[9px] px-1 py-0.5 bg-red-500/20 text-red-400 rounded uppercase font-medium">
                             {t.threat}
                           </span>
-                          <span className="text-[9px] text-gray-600">{t.date_added}</span>
+                          {t.tags.length > 0 && (
+                            <span className="text-[9px] text-gray-500">{t.tags.join(', ')}</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -496,7 +499,7 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Data Sources Status */}
+            {/* Data Sources */}
             <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
               <h3 className="font-bold text-gray-100 text-sm mb-3">Data Sources</h3>
               <div className="space-y-1.5 text-xs">
@@ -534,7 +537,7 @@ const Dashboard = () => {
 
         {/* Footer */}
         <div className="mt-8 text-center text-[11px] text-gray-600">
-          <p>Briefing AI • Data sourced from GDELT, CoinGecko, Alternative.me, Polymarket, URLhaus (abuse.ch)</p>
+          <p>Briefing AI • Data from GDELT, CoinGecko, Alternative.me, Polymarket, URLhaus</p>
         </div>
       </div>
     </div>
