@@ -5,19 +5,19 @@ const BackgroundGradient = () => {
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden">
       <div 
-        className="absolute -top-40 right-0 h-96 w-96 rounded-full bg-briefing-purple/20 blur-3xl"
+        className="absolute -top-40 right-0 h-96 w-96 rounded-full bg-briefing-purple/30 blur-3xl"
         style={{
           animation: 'move1 15s ease-in-out infinite'
         }}
       ></div>
       <div 
-        className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-briefing-blue/20 blur-3xl"
+        className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-briefing-blue/30 blur-3xl"
         style={{
           animation: 'move2 20s ease-in-out infinite'
         }}
       ></div>
       <div 
-        className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-briefing-blue/10 blur-3xl"
+        className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-briefing-blue/20 blur-3xl"
         style={{
           animation: 'move3 18s ease-in-out infinite'
         }}
