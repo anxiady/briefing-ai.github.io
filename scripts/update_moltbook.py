@@ -11,7 +11,7 @@ import os
 from datetime import datetime
 
 MOLTBOOK_API_KEY = os.environ.get("MOLTBOOK_API_KEY", "moltbook_sk_mwCjwMN5P50KQ7xilBjaNvPrYm0BJ2lt")
-API_URL = "https://www.moltbook.com/api/v1/feed"
+API_URL = "https://www.moltbook.com/api/v1/feed?sort=new"
 DASHBOARD_FILE = "src/pages/Dashboard.tsx"
 
 def fetch_moltbook_topics():
@@ -64,10 +64,11 @@ def format_topic_array(posts):
     return ',\n'.join(lines)
 
 def calculate_trending_score(post):
-    """Calculate trending score based on votes per hour."""
+    """Calculate trending score for new posts - raw engagement."""
     from datetime import datetime, timezone
     
     upvotes = post.get('upvotes', 0)
+    comments = post.get('comment_count', 0)
     created = post.get('created_at', '')
     
     if not created:
@@ -77,19 +78,15 @@ def calculate_trending_score(post):
         post_time = datetime.fromisoformat(created.replace('Z', '+00:00'))
         hours_ago = (datetime.now(timezone.utc) - post_time).total_seconds() / 3600
         
-        # Trending = votes per hour, weighted by recency
-        # Posts within 24 hours get full weight
-        # Posts 24-72 hours get 50% weight
-        # Posts older than 72 hours get 25% weight
-        if hours_ago < 24:
-            weight = 1.0
-        elif hours_ago < 72:
-            weight = 0.5
-        else:
-            weight = 0.25
+        # For new feed: prioritize newest posts with some engagement
+        # Score = (upvotes + comments*2) / hours_since_posted
+        # This gives us hot new posts that are gaining traction quickly
+        engagement = upvotes + (comments * 2)
         
-        # Votes per hour * recency weight
-        return (upvotes / max(hours_ago, 0.5)) * weight
+        # If post is less than 1 hour old, use minimum 0.5 to avoid divide by zero
+        time_factor = max(hours_ago, 0.5)
+        
+        return engagement / time_factor
     except:
         return 0
 
