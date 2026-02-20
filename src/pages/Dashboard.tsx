@@ -172,6 +172,16 @@ const Dashboard = () => {
   // Keyword Spike state
   const [spikes, setSpikes] = useState<KeywordSpike[]>([]);
   const [spikeLoading, setSpikeLoading] = useState(true);
+  const [expandedSpikes, setExpandedSpikes] = useState<Set<number>>(new Set());
+
+  const toggleSpike = (idx: number) => {
+    setExpandedSpikes(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
 
   // World Monitor API state (secondary cards)
   const [strategicRisk, setStrategicRisk] = useState<StrategicRisk | null>(null);
@@ -508,14 +518,24 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="p-4 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto">
-                  {spikes.map((spike, idx) => (
+                  {spikes.map((spike, idx) => {
+                    const isExpanded = expandedSpikes.has(idx);
+                    return (
                     <div key={idx} className="bg-white/[0.04] border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-colors">
-                      {/* Spike header */}
-                      <div className="px-4 pt-4 pb-1.5">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-indigo-400">📊 Keyword Spike</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
-                            {spike.confidence}%
+                      {/* Spike header — clickable to expand */}
+                      <div
+                        className="px-4 pt-4 pb-1.5 cursor-pointer"
+                        onClick={() => toggleSpike(idx)}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-indigo-400">📊 Keyword Spike</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
+                              {spike.confidence}%
+                            </span>
+                          </div>
+                          <span className={`text-gray-500 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                            ▶
                           </span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -525,9 +545,9 @@ const Dashboard = () => {
                         </div>
                       </div>
 
-                      {/* Summary */}
+                      {/* Summary — truncated or full */}
                       <div className="px-4 pb-2.5">
-                        <p className="text-sm text-gray-300 leading-relaxed line-clamp-3">
+                        <p className={`text-sm text-gray-300 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
                           {buildSummary(spike.headlines)}
                         </p>
                       </div>
@@ -541,19 +561,17 @@ const Dashboard = () => {
                         <span>{formatTime(spike.detectedAt)}</span>
                       </div>
 
-                      {/* Expandable context */}
-                      <details className="group">
-                        <summary className="px-4 py-2 text-xs text-gray-500 cursor-pointer hover:text-gray-400 transition-colors border-t border-white/5 bg-white/[0.02]">
-                          Context ▸
-                        </summary>
-                        <div className="px-4 pb-3 pt-1.5 space-y-1.5 bg-white/[0.02] text-xs">
-                          <div><span className="text-yellow-400 font-semibold">Why: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.whyItMatters}</span></div>
-                          <div><span className="text-blue-400 font-semibold">Action: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.action}</span></div>
-                          <div><span className="text-gray-600 font-semibold">Note: </span><span className="text-gray-600">{SIGNAL_CONTEXT.keyword_spike.note}</span></div>
+                      {/* Context — shown when expanded */}
+                      {isExpanded && (
+                        <div className="px-4 pb-3 pt-2 space-y-1.5 border-t border-white/5 bg-white/[0.02] text-xs animate-in fade-in duration-200">
+                          <div><span className="text-yellow-400 font-semibold">Why it matters: </span><span className="text-gray-400">{SIGNAL_CONTEXT.keyword_spike.whyItMatters}</span></div>
+                          <div><span className="text-blue-400 font-semibold">Action: </span><span className="text-gray-400">{SIGNAL_CONTEXT.keyword_spike.action}</span></div>
+                          <div><span className="text-gray-500 font-semibold">Note: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.note}</span></div>
                         </div>
-                      </details>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
