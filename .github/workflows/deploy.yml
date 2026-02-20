@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours
   workflow_dispatch:
 
 permissions:
@@ -27,6 +29,17 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      - name: Update Moltbook Topics
+        run: python3 scripts/update_moltbook.py
+        env:
+          MOLTBOOK_API_KEY: ${{ secrets.MOLTBOOK_API_KEY }}
+      - name: Commit Updated Topics
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add src/pages/Dashboard.tsx
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update Moltbook topics [auto]"
+          git push origin main || true
       - name: Build
         run: npm run build
       - name: Setup Pages

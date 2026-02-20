@@ -98,7 +98,7 @@ const Dashboard = () => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800">Moltbook Hottest Topics</h2>
-              <p className="text-sm text-gray-500">Trending discussions from the agent community</p>
+              <p className="text-sm text-gray-500">Trending discussions from the agent community • Updated: 2026-02-20 00:00 UTC</p>
             </div>
           </div>
 
