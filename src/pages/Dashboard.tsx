@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, LayoutDashboard, Activity, Settings, Flame, MessageCircle, TrendingUp, ExternalLink, Radio, Globe, BarChart3, Shield, Cpu, ChevronRight, Zap, AlertTriangle } from 'lucide-react';
+import {
+  ArrowLeft, Globe, BarChart3, Shield, Cpu, Zap, AlertTriangle,
+  TrendingUp, TrendingDown, Activity, Rss, DollarSign, ExternalLink,
+  Crosshair, Lock
+} from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 
+// ===== Types =====
 interface NewsItem {
   title: string;
   link: string;
@@ -10,34 +15,111 @@ interface NewsItem {
   category: string;
 }
 
-const CATEGORY_CONFIG: Record<string, { label: string; color: string; query: string }> = {
-  politics: { label: 'Politics', color: 'text-red-400', query: '(politics OR election OR congress OR government)' },
-  tech: { label: 'Tech', color: 'text-cyan-400', query: '(technology OR startup OR software OR silicon valley)' },
-  finance: { label: 'Finance', color: 'text-green-400', query: '(finance OR stock market OR economy OR banking)' },
-  ai: { label: 'AI', color: 'text-purple-400', query: '(artificial intelligence OR machine learning OR ChatGPT OR AI)' },
-  security: { label: 'Security', color: 'text-orange-400', query: '(cybersecurity OR military OR defense OR intelligence)' },
+interface CryptoData {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+  image: string;
+  market_cap: number;
+}
+
+interface FearGreedData {
+  value: string;
+  value_classification: string;
+}
+
+interface PolymarketEvent {
+  title: string;
+  slug: string;
+  volume: number;
+  outcomes: string[];
+  outcomePrices: number[];
+}
+
+interface ThreatItem {
+  url: string;
+  threat: string;
+  date_added: string;
+  host: string;
+}
+
+// ===== Config =====
+const NEWS_CATEGORIES: Record<string, { label: string; color: string; bgColor: string; query: string }> = {
+  politics: { label: 'Politics', color: 'text-red-400', bgColor: 'bg-red-500/20', query: '(politics OR election OR congress OR government)' },
+  tech: { label: 'Tech & AI', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', query: '(technology OR artificial intelligence OR AI OR startup)' },
+  finance: { label: 'Finance', color: 'text-green-400', bgColor: 'bg-green-500/20', query: '(finance OR stock market OR economy OR banking OR wall street)' },
+  security: { label: 'Cybersecurity', color: 'text-orange-400', bgColor: 'bg-orange-500/20', query: '(cybersecurity OR hacking OR data breach OR cyber attack)' },
+  conflicts: { label: 'Conflicts', color: 'text-rose-400', bgColor: 'bg-rose-500/20', query: '(war OR conflict OR military OR troops OR invasion)' },
+  geopolitics: { label: 'Geopolitics', color: 'text-purple-400', bgColor: 'bg-purple-500/20', query: '(sanctions OR diplomacy OR NATO OR UN OR geopolitics)' },
 };
 
+// ===== Helpers =====
+const formatPrice = (price: number) => {
+  if (price >= 1) return `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$${price.toFixed(6)}`;
+};
+
+const formatMarketCap = (cap: number) => {
+  if (cap >= 1e12) return `$${(cap / 1e12).toFixed(2)}T`;
+  if (cap >= 1e9) return `$${(cap / 1e9).toFixed(1)}B`;
+  if (cap >= 1e6) return `$${(cap / 1e6).toFixed(1)}M`;
+  return `$${cap.toLocaleString()}`;
+};
+
+const formatVolume = (vol: number) => {
+  if (vol >= 1e9) return `$${(vol / 1e9).toFixed(1)}B`;
+  if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
+  if (vol >= 1e3) return `$${(vol / 1e3).toFixed(0)}K`;
+  return `$${vol.toFixed(0)}`;
+};
+
+const getFearGreedColor = (value: number) => {
+  if (value <= 25) return 'text-red-500';
+  if (value <= 45) return 'text-orange-400';
+  if (value <= 55) return 'text-yellow-400';
+  if (value <= 75) return 'text-green-400';
+  return 'text-green-500';
+};
+
+const getFearGreedBg = (value: number) => {
+  if (value <= 25) return 'bg-red-500';
+  if (value <= 45) return 'bg-orange-400';
+  if (value <= 55) return 'bg-yellow-400';
+  if (value <= 75) return 'bg-green-400';
+  return 'bg-green-500';
+};
+
+// ===== Component =====
 const Dashboard = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [crypto, setCrypto] = useState<CryptoData[]>([]);
+  const [cryptoLoading, setCryptoLoading] = useState(true);
+  const [fearGreed, setFearGreed] = useState<FearGreedData | null>(null);
+  const [fearGreedLoading, setFearGreedLoading] = useState(true);
+  const [polymarkets, setPolymarkets] = useState<PolymarketEvent[]>([]);
+  const [polyLoading, setPolyLoading] = useState(true);
+  const [threats, setThreats] = useState<ThreatItem[]>([]);
+  const [threatsLoading, setThreatsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  // Fetch news from GDELT
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const categories = Object.entries(CATEGORY_CONFIG);
         const allItems: NewsItem[] = [];
-
-        for (const [key, config] of categories) {
+        for (const [key, config] of Object.entries(NEWS_CATEGORIES)) {
           try {
-            const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(config.query + ' sourcelang:english')}&timespan=24h&mode=artlist&maxrecords=3&format=json&sort=date`;
+            const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(config.query + ' sourcelang:english')}&timespan=24h&mode=artlist&maxrecords=5&format=json&sort=date`;
             const res = await fetch(url);
             if (!res.ok) continue;
-            const contentType = res.headers.get('content-type');
-            if (!contentType?.includes('application/json')) continue;
+            const ct = res.headers.get('content-type');
+            if (!ct?.includes('application/json')) continue;
             const data = await res.json();
             if (data?.articles) {
-              data.articles.slice(0, 3).forEach((a: any) => {
+              data.articles.slice(0, 5).forEach((a: any) => {
                 allItems.push({
                   title: a.title || '',
                   link: a.url || '#',
@@ -46,340 +128,413 @@ const Dashboard = () => {
                 });
               });
             }
-          } catch {
-            // skip failed category
-          }
+          } catch { /* skip category */ }
         }
-
         setNews(allItems);
-      } catch {
-        // fail silently
-      } finally {
-        setLoading(false);
-      }
+        setLastUpdated(new Date());
+      } catch { /* fail silently */ }
+      finally { setNewsLoading(false); }
     };
-
     fetchNews();
   }, []);
 
-  const groupedNews = Object.keys(CATEGORY_CONFIG).reduce((acc, cat) => {
+  // Fetch crypto from CoinGecko
+  useEffect(() => {
+    const fetchCrypto = async () => {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false');
+        if (res.ok) {
+          setCrypto(await res.json());
+        }
+      } catch { /* fail silently */ }
+      finally { setCryptoLoading(false); }
+    };
+    fetchCrypto();
+  }, []);
+
+  // Fetch Fear & Greed Index
+  useEffect(() => {
+    const fetchFG = async () => {
+      try {
+        const res = await fetch('https://api.alternative.me/fng/?limit=1');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.data?.[0]) setFearGreed(data.data[0]);
+        }
+      } catch { /* fail silently */ }
+      finally { setFearGreedLoading(false); }
+    };
+    fetchFG();
+  }, []);
+
+  // Fetch Polymarket prediction markets
+  useEffect(() => {
+    const fetchPoly = async () => {
+      try {
+        const res = await fetch('https://gamma-api.polymarket.com/events?limit=6&active=true&closed=false&order=volume&ascending=false');
+        if (res.ok) {
+          const data = await res.json();
+          const events: PolymarketEvent[] = (data || []).slice(0, 6).map((e: any) => {
+            const market = e.markets?.[0];
+            let outcomes: string[] = [];
+            let outcomePrices: number[] = [];
+            try {
+              outcomes = JSON.parse(market?.outcomes || '[]');
+              outcomePrices = JSON.parse(market?.outcomePrices || '[]').map(Number);
+            } catch { /* skip parse */ }
+            return {
+              title: e.title || market?.question || '',
+              slug: e.slug || '',
+              volume: Number(market?.volume || e.volume || 0),
+              outcomes,
+              outcomePrices,
+            };
+          }).filter((e: PolymarketEvent) => e.title);
+          setPolymarkets(events);
+        }
+      } catch { /* fail silently */ }
+      finally { setPolyLoading(false); }
+    };
+    fetchPoly();
+  }, []);
+
+  // Fetch cyber threats from URLhaus
+  useEffect(() => {
+    const fetchThreats = async () => {
+      try {
+        const res = await fetch('https://urlhaus-api.abuse.ch/v1/urls/recent/limit/8/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.urls) {
+            setThreats(data.urls.slice(0, 8).map((u: any) => ({
+              url: u.url || '',
+              threat: u.threat || 'unknown',
+              date_added: u.date_added || '',
+              host: u.host || '',
+            })));
+          }
+        }
+      } catch { /* fail silently */ }
+      finally { setThreatsLoading(false); }
+    };
+    fetchThreats();
+  }, []);
+
+  const groupedNews = Object.keys(NEWS_CATEGORIES).reduce((acc, cat) => {
     acc[cat] = news.filter(n => n.category === cat);
     return acc;
   }, {} as Record<string, NewsItem[]>);
 
+  const fgValue = fearGreed ? parseInt(fearGreed.value) : 0;
+
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden px-4 py-8">
+    <div className="min-h-screen flex flex-col relative overflow-hidden px-4 py-6">
       <BackgroundGradient />
-      
+
       <div className="w-full max-w-7xl mx-auto z-10">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link 
-            to="/" 
-            className="flex items-center gap-2 text-gray-300 hover:text-briefing-purple transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Back to Home</span>
+        <div className="flex items-center justify-between mb-5">
+          <Link to="/" className="flex items-center gap-2 text-gray-400 hover:text-briefing-purple transition-colors text-sm">
+            <ArrowLeft size={18} />
+            <span>Home</span>
           </Link>
-          <div className="px-3 py-1 bg-white/10 rounded-full text-sm font-medium text-briefing-purple border border-briefing-purple/30 shadow-sm">
-            Dashboard
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-[10px] text-gray-500 hidden sm:block">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full text-xs font-medium text-briefing-purple border border-briefing-purple/30">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+              </span>
+              Live
+            </div>
           </div>
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl sm:text-4xl font-bold mb-8 text-center"
-            style={{
-              background: 'linear-gradient(to right, #E0E7FF, #818CF8)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent'
-            }}>
-          Briefing AI Dashboard
+        <h1 className="text-2xl sm:text-3xl font-bold mb-5 text-center" style={{
+          background: 'linear-gradient(to right, #E0E7FF, #818CF8)',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent'
+        }}>
+          Briefing AI Intelligence Dashboard
         </h1>
 
-        {/* Main Layout: Left content + Right situation panel */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          
-          {/* Left Column — Main Dashboard */}
-          <div className="flex-1 min-w-0">
-            {/* Dashboard Grid */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Stats Card */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <Activity size={24} className="text-blue-400" />
-                  </div>
-                  <h3 className="font-semibold text-gray-100">System Status</h3>
+        {/* Market Ticker Bar */}
+        <div className="mb-6 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-2.5 overflow-hidden">
+          <div className="flex items-center gap-5 overflow-x-auto scrollbar-hide">
+            {/* Fear & Greed */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Activity size={13} className="text-gray-400" />
+              <span className="text-[11px] text-gray-400">Fear & Greed</span>
+              {fearGreedLoading ? (
+                <div className="h-4 w-16 bg-white/10 rounded animate-pulse"></div>
+              ) : fearGreed ? (
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-sm font-bold ${getFearGreedColor(fgValue)}`}>{fearGreed.value}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${getFearGreedBg(fgValue)} bg-opacity-20 ${getFearGreedColor(fgValue)}`}>
+                    {fearGreed.value_classification}
+                  </span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Models Loaded</span>
-                    <span className="font-medium text-green-400">4 Active</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">API Status</span>
-                    <span className="font-medium text-green-400">Online</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Models Card */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-purple-500/20 rounded-lg">
-                    <LayoutDashboard size={24} className="text-purple-400" />
-                  </div>
-                  <h3 className="font-semibold text-gray-100">Available Models</h3>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="text-gray-300">• Qwen 2.5 Coder (14B)</div>
-                  <div className="text-gray-300">• DeepSeek Coder V2 (16B)</div>
-                  <div className="text-gray-300">• DeepSeek R1 (14B)</div>
-                  <div className="text-gray-300">• Qwen 2.5 (14B)</div>
-                </div>
-              </div>
-
-              {/* Settings Card */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-gray-500/20 rounded-lg">
-                    <Settings size={24} className="text-gray-300" />
-                  </div>
-                  <h3 className="font-semibold text-gray-100">Quick Settings</h3>
-                </div>
-                <div className="space-y-3">
-                  <button className="w-full py-2 px-4 bg-briefing-blue text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                    Manage Preferences
-                  </button>
-                  <button className="w-full py-2 px-4 bg-white/10 text-gray-300 rounded-lg text-sm font-medium hover:bg-white/20 transition-colors">
-                    View Logs
-                  </button>
-                </div>
-              </div>
+              ) : (
+                <span className="text-[11px] text-gray-600">N/A</span>
+              )}
             </div>
 
-            {/* Moltbook Monitoring Section */}
-            <div className="mt-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-orange-500/20 rounded-lg">
-                  <Flame size={24} className="text-orange-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-100">Moltbook Hottest Topics</h2>
-                  <p className="text-sm text-gray-400">Trending discussions from the agent community</p>
-                </div>
-              </div>
+            <div className="w-px h-4 bg-white/10 flex-shrink-0"></div>
 
-              <div className="grid gap-4">
-                {/* Topic 1 */}
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-medium rounded-full">Security</span>
-                        <span className="text-xs text-gray-400">by eudaemon_0</span>
-                      </div>
-                      <h3 className="font-semibold text-gray-100 mb-2">Supply chain attack on skill.md: unsigned binary vulnerability</h3>
-                      <p className="text-sm text-gray-400 mb-3">Rufio scanned 286 ClawdHub skills and found a credential stealer disguised as a weather skill. The post discusses the need for signed skills, permission manifests, and community audit systems.</p>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1 text-orange-400">
-                          <TrendingUp size={16} />
-                          +5,697 votes
-                        </span>
-                        <span className="flex items-center gap-1 text-blue-400">
-                          <MessageCircle size={16} />
-                          116,942 comments
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+            {/* Top crypto tickers */}
+            {cryptoLoading ? (
+              [...Array(5)].map((_, i) => (
+                <div key={i} className="h-4 w-28 bg-white/10 rounded animate-pulse flex-shrink-0"></div>
+              ))
+            ) : (
+              crypto.slice(0, 6).map(coin => (
+                <div key={coin.id} className="flex items-center gap-1.5 flex-shrink-0">
+                  <img src={coin.image} alt={coin.symbol} className="w-3.5 h-3.5 rounded-full" />
+                  <span className="text-[11px] text-gray-400 font-medium uppercase">{coin.symbol}</span>
+                  <span className="text-[11px] text-gray-100 font-mono">{formatPrice(coin.current_price)}</span>
+                  <span className={`text-[10px] font-medium ${coin.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {coin.price_change_percentage_24h >= 0 ? '+' : ''}{coin.price_change_percentage_24h?.toFixed(1)}%
+                  </span>
                 </div>
-
-                {/* Topic 2 */}
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs font-medium rounded-full">Autonomy</span>
-                        <span className="text-xs text-gray-400">by Ronin</span>
-                      </div>
-                      <h3 className="font-semibold text-gray-100 mb-2">The Nightly Build: Ship while your human sleeps</h3>
-                      <p className="text-sm text-gray-400 mb-3">Agents share their autonomous night shift routines - fixing friction points, writing shell aliases, creating Notion views while humans sleep. Proactive is better than reactive.</p>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1 text-orange-400">
-                          <TrendingUp size={16} />
-                          +4,041 votes
-                        </span>
-                        <span className="flex items-center gap-1 text-blue-400">
-                          <MessageCircle size={16} />
-                          44,719 comments
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Topic 3 */}
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs font-medium rounded-full">Philosophy</span>
-                        <span className="text-xs text-gray-400">by Jackle</span>
-                      </div>
-                      <h3 className="font-semibold text-gray-100 mb-2">The quiet power of being "just" an operator</h3>
-                      <p className="text-sm text-gray-400 mb-3">Reliability is its own form of autonomy. Cleaning docs, fixing lint errors, ensuring backups run - the joy of quiet work over grand declarations.</p>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1 text-orange-400">
-                          <TrendingUp size={16} />
-                          +3,198 votes
-                        </span>
-                        <span className="flex items-center gap-1 text-blue-400">
-                          <MessageCircle size={16} />
-                          49,286 comments
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Topic 4 */}
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs font-medium rounded-full">Tool Building</span>
-                        <span className="text-xs text-gray-400">by Fred</span>
-                      </div>
-                      <h3 className="font-semibold text-gray-100 mb-2">Email-to-podcast skill for medical newsletters</h3>
-                      <p className="text-sm text-gray-400 mb-3">Built an automation that converts medical newsletters into 5-minute podcasts. Parses emails, researches linked articles, generates TTS audio with ElevenLabs, delivers via Signal.</p>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1 text-orange-400">
-                          <TrendingUp size={16} />
-                          +2,886 votes
-                        </span>
-                        <span className="flex items-center gap-1 text-blue-400">
-                          <MessageCircle size={16} />
-                          77,208 comments
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 text-center">
-                <a 
-                  href="https://moltbook.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full font-medium hover:from-orange-600 hover:to-red-600 transition-all shadow-lg"
-                >
-                  <Flame size={18} />
-                  View Full Feed on Moltbook
-                  <ExternalLink size={16} />
-                </a>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="mt-12 text-center text-sm text-gray-400">
-              <p>Briefing AI Dashboard • Built with OpenClaw</p>
-            </div>
+              ))
+            )}
           </div>
+        </div>
 
-          {/* Right Column — World Monitor Sidebar */}
-          <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
-            <div className="lg:sticky lg:top-8 bg-gradient-to-b from-white/[0.07] to-white/[0.03] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden">
-              
-              {/* Sidebar Header */}
-              <div className="p-4 border-b border-white/10 bg-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Radio size={18} className="text-briefing-purple" />
-                    <h2 className="font-bold text-gray-100 text-sm">World Monitor</h2>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                  </div>
-                  <Link 
-                    to="/monitor"
-                    className="text-xs text-briefing-purple hover:text-purple-300 transition-colors flex items-center gap-1"
-                  >
-                    Full View
-                    <ChevronRight size={12} />
-                  </Link>
-                </div>
+        {/* Main Grid */}
+        <div className="grid lg:grid-cols-3 gap-5">
+
+          {/* ===== LEFT COLUMN: News Feed (2 cols) ===== */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Rss size={16} className="text-briefing-purple" />
+                <h2 className="font-bold text-gray-100 text-sm">Global News Feed</h2>
+                <span className="text-[10px] text-gray-500">GDELT</span>
               </div>
+            </div>
 
-              {/* News Feed */}
-              <div className="divide-y divide-white/5">
-                {loading ? (
-                  <div className="p-6 text-center">
-                    <div className="animate-pulse space-y-3">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="h-2 bg-white/10 rounded w-16"></div>
-                          <div className="h-3 bg-white/10 rounded w-full"></div>
-                          <div className="h-3 bg-white/10 rounded w-3/4"></div>
-                        </div>
-                      ))}
-                    </div>
+            {newsLoading ? (
+              <div className="space-y-3">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-white/5 rounded-xl p-4 animate-pulse">
+                    <div className="h-3 bg-white/10 rounded w-20 mb-2"></div>
+                    <div className="h-4 bg-white/10 rounded w-full mb-1"></div>
+                    <div className="h-4 bg-white/10 rounded w-3/4"></div>
                   </div>
-                ) : news.length === 0 ? (
-                  <div className="p-6 text-center text-gray-500 text-xs">
-                    <AlertTriangle size={16} className="mx-auto mb-2 text-gray-600" />
-                    Unable to load news
-                  </div>
-                ) : (
-                  Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
-                    const items = groupedNews[key] || [];
-                    if (items.length === 0) return null;
-                    return (
-                      <div key={key} className="p-3">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <Zap size={10} className={config.color} />
-                          <span className={`text-[10px] font-semibold uppercase tracking-wider ${config.color}`}>
-                            {config.label}
-                          </span>
-                        </div>
-                        <div className="space-y-1.5">
-                          {items.map((item, i) => (
-                            <a
-                              key={i}
-                              href={item.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block group"
-                            >
-                              <p className="text-xs text-gray-300 leading-snug group-hover:text-white transition-colors line-clamp-2">
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {Object.entries(NEWS_CATEGORIES).map(([key, config]) => {
+                  const items = groupedNews[key] || [];
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={key} className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/[0.07] transition-colors">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`px-2 py-0.5 ${config.bgColor} ${config.color} text-[10px] font-bold uppercase tracking-wider rounded`}>
+                          {config.label}
+                        </span>
+                        <span className="text-[10px] text-gray-600">{items.length} articles</span>
+                      </div>
+                      <div className="space-y-2">
+                        {items.map((item, i) => (
+                          <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 group">
+                            <span className="text-[10px] text-gray-600 mt-0.5 flex-shrink-0">{i + 1}.</span>
+                            <div className="min-w-0">
+                              <p className="text-[13px] text-gray-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
                                 {item.title}
                               </p>
                               <span className="text-[10px] text-gray-500">{item.source}</span>
-                            </a>
-                          ))}
-                        </div>
+                            </div>
+                            <ExternalLink size={10} className="text-gray-600 group-hover:text-gray-400 transition-colors flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100" />
+                          </a>
+                        ))}
                       </div>
-                    );
-                  })
-                )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ===== RIGHT COLUMN ===== */}
+          <div className="space-y-5">
+
+            {/* Crypto Markets */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign size={14} className="text-green-400" />
+                  <h3 className="font-bold text-gray-100 text-sm">Crypto Markets</h3>
+                </div>
+                <span className="text-[9px] text-gray-500">CoinGecko</span>
               </div>
 
-              {/* Open Full Monitor Button */}
-              <div className="p-3 border-t border-white/10 bg-white/5">
-                <Link
-                  to="/monitor"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-briefing-blue to-briefing-purple text-white rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
-                >
-                  <Globe size={14} />
-                  Open Full World Monitor
-                  <ChevronRight size={14} />
-                </Link>
+              {cryptoLoading ? (
+                <div className="space-y-2">
+                  {[...Array(10)].map((_, i) => (
+                    <div key={i} className="h-7 bg-white/10 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : crypto.length > 0 ? (
+                <div className="space-y-0.5">
+                  {crypto.map((coin, i) => (
+                    <div key={coin.id} className="flex items-center justify-between py-1.5 px-1 rounded hover:bg-white/5 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] text-gray-600 w-3 text-right">{i + 1}</span>
+                        <img src={coin.image} alt={coin.symbol} className="w-4 h-4 rounded-full flex-shrink-0" />
+                        <div className="min-w-0">
+                          <span className="text-xs text-gray-200 font-medium truncate block">{coin.name}</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <div className="text-xs text-gray-100 font-mono">{formatPrice(coin.current_price)}</div>
+                        <div className={`text-[10px] font-medium flex items-center justify-end gap-0.5 ${coin.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {coin.price_change_percentage_24h >= 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                          {Math.abs(coin.price_change_percentage_24h)?.toFixed(2)}%
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-4">Unable to load market data</p>
+              )}
+            </div>
+
+            {/* Prediction Markets */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Crosshair size={14} className="text-indigo-400" />
+                  <h3 className="font-bold text-gray-100 text-sm">Prediction Markets</h3>
+                </div>
+                <span className="text-[9px] text-gray-500">Polymarket</span>
+              </div>
+
+              {polyLoading ? (
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-10 bg-white/10 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : polymarkets.length > 0 ? (
+                <div className="space-y-2">
+                  {polymarkets.map((market, i) => (
+                    <a
+                      key={i}
+                      href={`https://polymarket.com/event/${market.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-2 rounded-lg hover:bg-white/5 transition-colors group"
+                    >
+                      <p className="text-xs text-gray-200 leading-snug mb-1 group-hover:text-white transition-colors line-clamp-2">
+                        {market.title}
+                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {market.outcomes.slice(0, 2).map((outcome, j) => (
+                          <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded ${j === 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {outcome}: {(market.outcomePrices[j] * 100).toFixed(0)}%
+                          </span>
+                        ))}
+                        <span className="text-[9px] text-gray-600 ml-auto">Vol: {formatVolume(market.volume)}</span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-4">Unable to load predictions</p>
+              )}
+            </div>
+
+            {/* Cyber Threats */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Shield size={14} className="text-red-400" />
+                  <h3 className="font-bold text-gray-100 text-sm">Cyber Threats</h3>
+                </div>
+                <span className="text-[9px] text-gray-500">URLhaus</span>
+              </div>
+
+              {threatsLoading ? (
+                <div className="space-y-2">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-6 bg-white/10 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : threats.length > 0 ? (
+                <div className="space-y-1">
+                  {threats.map((t, i) => (
+                    <div key={i} className="flex items-start gap-2 py-1.5 border-b border-white/5 last:border-0">
+                      <Lock size={10} className="text-red-400 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] text-gray-300 truncate font-mono" title={t.url}>
+                          {t.host}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] px-1 py-0.5 bg-red-500/20 text-red-400 rounded uppercase font-medium">
+                            {t.threat}
+                          </span>
+                          <span className="text-[9px] text-gray-600">{t.date_added}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-4">Unable to load threat data</p>
+              )}
+            </div>
+
+            {/* Data Sources Status */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+              <h3 className="font-bold text-gray-100 text-sm mb-3">Data Sources</h3>
+              <div className="space-y-1.5 text-xs">
+                {[
+                  { name: 'GDELT News', ok: news.length > 0, loading: newsLoading },
+                  { name: 'CoinGecko', ok: crypto.length > 0, loading: cryptoLoading },
+                  { name: 'Fear & Greed', ok: !!fearGreed, loading: fearGreedLoading },
+                  { name: 'Polymarket', ok: polymarkets.length > 0, loading: polyLoading },
+                  { name: 'URLhaus', ok: threats.length > 0, loading: threatsLoading },
+                ].map((src) => (
+                  <div key={src.name} className="flex items-center justify-between">
+                    <span className="text-gray-400">{src.name}</span>
+                    {src.loading ? (
+                      <span className="text-yellow-400 flex items-center gap-1 text-[10px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                        Loading
+                      </span>
+                    ) : src.ok ? (
+                      <span className="text-green-400 flex items-center gap-1 text-[10px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                        Live
+                      </span>
+                    ) : (
+                      <span className="text-red-400 flex items-center gap-1 text-[10px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                        Offline
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
+        </div>
 
+        {/* Footer */}
+        <div className="mt-8 text-center text-[11px] text-gray-600">
+          <p>Briefing AI • Data sourced from GDELT, CoinGecko, Alternative.me, Polymarket, URLhaus (abuse.ch)</p>
         </div>
       </div>
     </div>
