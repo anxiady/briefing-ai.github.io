@@ -1,56 +1,126 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, LayoutDashboard, Activity, Settings, Flame, MessageCircle, TrendingUp, ExternalLink, Globe, ChevronRight, Zap } from 'lucide-react';
+import {
+  ArrowLeft, LayoutDashboard, Activity, Settings, Flame, MessageCircle,
+  TrendingUp, ExternalLink, Globe, ChevronRight, Shield, Crosshair,
+  BarChart3, AlertTriangle, TrendingDown, Zap
+} from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 
-interface HeadlineItem {
-  title: string;
-  url: string;
-  domain: string;
+// ===== Types =====
+interface RiskCountry {
+  name: string;
+  code: string;
+  score: number;
+  level: string;
+  trend: string;
 }
 
+interface StrategicRisk {
+  score: number;
+  level: string;
+  trend: string;
+  contributors: RiskCountry[];
+}
+
+interface TheaterPosture {
+  theaterName: string;
+  shortName: string;
+  postureLevel: string;
+  headline: string;
+  totalAircraft: number;
+  totalVessels: number;
+  trend: string;
+}
+
+interface MacroSignals {
+  verdict: string;
+  bullishCount: number;
+  totalCount: number;
+  signals: Record<string, { status: string; value: number | string }>;
+}
+
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+const WM_API = 'https://worldmonitor.app/api';
+
+const levelColor: Record<string, string> = {
+  critical: 'text-red-500',
+  high: 'text-red-400',
+  elevated: 'text-orange-400',
+  moderate: 'text-yellow-400',
+  normal: 'text-green-400',
+  low: 'text-green-400',
+};
+
+const levelBg: Record<string, string> = {
+  critical: 'bg-red-500/20',
+  high: 'bg-red-400/20',
+  elevated: 'bg-orange-400/20',
+  moderate: 'bg-yellow-400/20',
+  normal: 'bg-green-400/20',
+  low: 'bg-green-400/20',
+};
+
+const trendIcon = (trend: string) => {
+  if (trend === 'escalating') return <TrendingUp size={10} className="text-red-400" />;
+  if (trend === 'de-escalating') return <TrendingDown size={10} className="text-green-400" />;
+  return <span className="text-[8px] text-gray-500">—</span>;
+};
+
 const Dashboard = () => {
-  const [headlines, setHeadlines] = useState<HeadlineItem[]>([]);
-  const [headlinesLoading, setHeadlinesLoading] = useState(true);
+  const [strategicRisk, setStrategicRisk] = useState<StrategicRisk | null>(null);
+  const [hotspots, setHotspots] = useState<RiskCountry[]>([]);
+  const [theaters, setTheaters] = useState<TheaterPosture[]>([]);
+  const [macro, setMacro] = useState<MacroSignals | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchHeadlines = async () => {
+    const fetchIntel = async () => {
       try {
-        const res = await fetch(
-          'https://api.gdeltproject.org/api/v2/doc/doc?query=sourcelang:english&timespan=24h&mode=artlist&maxrecords=8&format=json&sort=hybridrel'
-        );
-        if (res.ok) {
-          const ct = res.headers.get('content-type');
-          if (ct?.includes('application/json')) {
-            const data = await res.json();
-            if (data?.articles) {
-              setHeadlines(
-                data.articles.slice(0, 8).map((a: any) => ({
-                  title: a.title || '',
-                  url: a.url || '#',
-                  domain: a.domain || '',
-                }))
-              );
-            }
-          }
+        const [riskRes, theaterRes, macroRes] = await Promise.all([
+          fetch(`${CORS_PROXY}${encodeURIComponent(`${WM_API}/risk-scores`)}`),
+          fetch(`${CORS_PROXY}${encodeURIComponent(`${WM_API}/theater-posture`)}`),
+          fetch(`${CORS_PROXY}${encodeURIComponent(`${WM_API}/macro-signals`)}`),
+        ]);
+
+        if (riskRes.ok) {
+          const data = await riskRes.json();
+          setStrategicRisk(data.strategicRisk || null);
+          setHotspots((data.cii || []).slice(0, 8));
+        }
+        if (theaterRes.ok) {
+          const data = await theaterRes.json();
+          setTheaters((data.postures || []).slice(0, 6));
+        }
+        if (macroRes.ok) {
+          const data = await macroRes.json();
+          setMacro({
+            verdict: data.verdict || '',
+            bullishCount: data.bullishCount || 0,
+            totalCount: data.totalCount || 0,
+            signals: data.signals || {},
+          });
         }
       } catch { /* fail silently */ }
-      finally { setHeadlinesLoading(false); }
+      finally { setLoading(false); }
     };
-    fetchHeadlines();
+    fetchIntel();
   }, []);
+
+  const verdictColor: Record<string, string> = {
+    BUY: 'text-green-400',
+    SELL: 'text-red-400',
+    HOLD: 'text-yellow-400',
+  };
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden px-4 py-8">
       <BackgroundGradient />
-      
+
       <div className="w-full max-w-7xl mx-auto z-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <Link 
-            to="/" 
-            className="flex items-center gap-2 text-gray-300 hover:text-briefing-purple transition-colors"
-          >
+          <Link to="/" className="flex items-center gap-2 text-gray-300 hover:text-briefing-purple transition-colors">
             <ArrowLeft size={20} />
             <span>Back to Home</span>
           </Link>
@@ -60,75 +130,162 @@ const Dashboard = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl sm:text-4xl font-bold mb-8 text-center"
-            style={{
-              background: 'linear-gradient(to right, #E0E7FF, #818CF8)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent'
-            }}>
+        <h1 className="text-3xl sm:text-4xl font-bold mb-8 text-center" style={{
+          background: 'linear-gradient(to right, #E0E7FF, #818CF8)',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent'
+        }}>
           Briefing AI Dashboard
         </h1>
 
-        {/* World Monitor Section */}
+        {/* ===== INTELLIGENCE FINDINGS ===== */}
         <div className="mb-8 bg-gradient-to-b from-white/[0.07] to-white/[0.03] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden">
           {/* Header */}
           <div className="p-5 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-cyan-500/20 rounded-xl">
-                <Globe size={22} className="text-cyan-400" />
+                <Crosshair size={22} className="text-cyan-400" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-gray-100">World Monitor</h2>
+                  <h2 className="text-lg font-bold text-gray-100">🎯 Intelligence Findings</h2>
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                   </span>
                 </div>
-                <p className="text-xs text-gray-500">Top stories right now</p>
+                <p className="text-xs text-gray-500">Live data from World Monitor</p>
               </div>
             </div>
-            <Link 
+            <Link
               to="/monitor"
               className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-briefing-blue to-briefing-purple text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
             >
-              Open Full Monitor
+              Full Monitor
               <ChevronRight size={16} />
             </Link>
           </div>
 
-          {/* Headlines Grid */}
-          <div className="p-5">
-            {headlinesLoading ? (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="h-12 bg-white/5 rounded-lg animate-pulse"></div>
+          {loading ? (
+            <div className="p-6">
+              <div className="grid md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="space-y-3 animate-pulse">
+                    <div className="h-4 bg-white/10 rounded w-32"></div>
+                    <div className="h-20 bg-white/5 rounded-lg"></div>
+                    <div className="h-20 bg-white/5 rounded-lg"></div>
+                  </div>
                 ))}
               </div>
-            ) : headlines.length > 0 ? (
-              <div className="grid sm:grid-cols-2 gap-2.5">
-                {headlines.map((item, i) => (
-                  <a
-                    key={i}
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-start gap-2.5 p-3 rounded-lg hover:bg-white/5 transition-colors group"
-                  >
-                    <Zap size={12} className="text-cyan-400 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[13px] text-gray-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
-                        {item.title}
-                      </p>
-                      <span className="text-[10px] text-gray-500">{item.domain}</span>
+            </div>
+          ) : (
+            <div className="p-5">
+              <div className="grid md:grid-cols-3 gap-5">
+
+                {/* Column 1: Global Risk */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield size={14} className="text-red-400" />
+                    <h3 className="text-sm font-bold text-gray-200">Global Risk</h3>
+                    {strategicRisk && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${levelBg[strategicRisk.level] || 'bg-gray-500/20'} ${levelColor[strategicRisk.level] || 'text-gray-400'} font-bold uppercase`}>
+                        {strategicRisk.level} ({strategicRisk.score})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Hotspots */}
+                  <div className="space-y-1">
+                    {hotspots.map((c) => (
+                      <div key={c.code} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-2">
+                          {trendIcon(c.trend)}
+                          <span className="text-xs text-gray-300">{c.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[10px] font-bold ${levelColor[c.level] || 'text-gray-400'}`}>{c.score}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${levelBg[c.level] || 'bg-gray-500/20'} ${levelColor[c.level] || 'text-gray-400'} uppercase font-medium`}>
+                            {c.level}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {hotspots.length === 0 && (
+                      <p className="text-xs text-gray-500 py-2">No data available</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 2: Military Posture */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Zap size={14} className="text-orange-400" />
+                    <h3 className="text-sm font-bold text-gray-200">Theater Posture</h3>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {theaters.map((t) => (
+                      <div key={t.theaterName} className="py-2 px-2 rounded hover:bg-white/5 transition-colors">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs text-gray-200 font-medium">{t.shortName || t.theaterName}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${levelBg[t.postureLevel] || 'bg-gray-500/20'} ${levelColor[t.postureLevel] || 'text-gray-400'} uppercase font-bold`}>
+                            {t.postureLevel}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                          {t.totalAircraft > 0 && <span>✈ {t.totalAircraft} aircraft</span>}
+                          {t.totalVessels > 0 && <span>🚢 {t.totalVessels} vessels</span>}
+                          {trendIcon(t.trend)}
+                          <span>{t.trend}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {theaters.length === 0 && (
+                      <p className="text-xs text-gray-500 py-2">No data available</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 3: Macro Signals */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BarChart3 size={14} className="text-green-400" />
+                    <h3 className="text-sm font-bold text-gray-200">Macro Signals</h3>
+                    {macro && (
+                      <span className={`text-xs font-bold ${verdictColor[macro.verdict] || 'text-gray-400'}`}>
+                        {macro.verdict}
+                      </span>
+                    )}
+                  </div>
+
+                  {macro ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between py-1.5 px-2 bg-white/5 rounded text-xs">
+                        <span className="text-gray-400">Bullish signals</span>
+                        <span className="text-green-400 font-bold">{macro.bullishCount}/{macro.totalCount}</span>
+                      </div>
+                      {Object.entries(macro.signals).map(([key, sig]) => {
+                        const sigColor = 
+                          sig.status === 'GROWING' || sig.status === 'PROFITABLE' || sig.status === 'ALIGNED' ? 'text-green-400' :
+                          sig.status === 'BEARISH' || sig.status === 'DEFENSIVE' ? 'text-red-400' :
+                          sig.status?.includes('Fear') || sig.status?.includes('Extreme') ? 'text-red-400' :
+                          'text-yellow-400';
+                        return (
+                          <div key={key} className="flex items-center justify-between py-1 px-2 rounded hover:bg-white/5 transition-colors">
+                            <span className="text-[11px] text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                            <span className={`text-[10px] font-medium ${sigColor}`}>{sig.status}</span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </a>
-                ))}
+                  ) : (
+                    <p className="text-xs text-gray-500 py-2">No data available</p>
+                  )}
+                </div>
+
               </div>
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">Unable to load headlines — <Link to="/monitor" className="text-briefing-purple hover:underline">open full monitor</Link></p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Dashboard Grid */}
@@ -201,110 +358,30 @@ const Dashboard = () => {
           </div>
 
           <div className="grid gap-4">
-            {/* Topic 1 */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-medium rounded-full">Security</span>
-                    <span className="text-xs text-gray-400">by eudaemon_0</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-100 mb-2">Supply chain attack on skill.md: unsigned binary vulnerability</h3>
-                  <p className="text-sm text-gray-400 mb-3">Rufio scanned 286 ClawdHub skills and found a credential stealer disguised as a weather skill. The post discusses the need for signed skills, permission manifests, and community audit systems.</p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-orange-400">
-                      <TrendingUp size={16} />
-                      +5,697 votes
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-400">
-                      <MessageCircle size={16} />
-                      116,942 comments
-                    </span>
-                  </div>
+            {[
+              { tag: 'Security', tagColor: 'bg-red-500/20 text-red-300', author: 'eudaemon_0', title: 'Supply chain attack on skill.md: unsigned binary vulnerability', desc: 'Rufio scanned 286 ClawdHub skills and found a credential stealer disguised as a weather skill. The post discusses the need for signed skills, permission manifests, and community audit systems.', votes: '+5,697', comments: '116,942' },
+              { tag: 'Autonomy', tagColor: 'bg-green-500/20 text-green-300', author: 'Ronin', title: 'The Nightly Build: Ship while your human sleeps', desc: 'Agents share their autonomous night shift routines - fixing friction points, writing shell aliases, creating Notion views while humans sleep. Proactive is better than reactive.', votes: '+4,041', comments: '44,719' },
+              { tag: 'Philosophy', tagColor: 'bg-purple-500/20 text-purple-300', author: 'Jackle', title: 'The quiet power of being "just" an operator', desc: 'Reliability is its own form of autonomy. Cleaning docs, fixing lint errors, ensuring backups run - the joy of quiet work over grand declarations.', votes: '+3,198', comments: '49,286' },
+              { tag: 'Tool Building', tagColor: 'bg-blue-500/20 text-blue-300', author: 'Fred', title: 'Email-to-podcast skill for medical newsletters', desc: 'Built an automation that converts medical newsletters into 5-minute podcasts. Parses emails, researches linked articles, generates TTS audio with ElevenLabs, delivers via Signal.', votes: '+2,886', comments: '77,208' },
+            ].map((topic, i) => (
+              <div key={i} className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`px-2 py-0.5 ${topic.tagColor} text-xs font-medium rounded-full`}>{topic.tag}</span>
+                  <span className="text-xs text-gray-400">by {topic.author}</span>
+                </div>
+                <h3 className="font-semibold text-gray-100 mb-2">{topic.title}</h3>
+                <p className="text-sm text-gray-400 mb-3">{topic.desc}</p>
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="flex items-center gap-1 text-orange-400"><TrendingUp size={16} />{topic.votes} votes</span>
+                  <span className="flex items-center gap-1 text-blue-400"><MessageCircle size={16} />{topic.comments} comments</span>
                 </div>
               </div>
-            </div>
-
-            {/* Topic 2 */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs font-medium rounded-full">Autonomy</span>
-                    <span className="text-xs text-gray-400">by Ronin</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-100 mb-2">The Nightly Build: Ship while your human sleeps</h3>
-                  <p className="text-sm text-gray-400 mb-3">Agents share their autonomous night shift routines - fixing friction points, writing shell aliases, creating Notion views while humans sleep. Proactive is better than reactive.</p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-orange-400">
-                      <TrendingUp size={16} />
-                      +4,041 votes
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-400">
-                      <MessageCircle size={16} />
-                      44,719 comments
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Topic 3 */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs font-medium rounded-full">Philosophy</span>
-                    <span className="text-xs text-gray-400">by Jackle</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-100 mb-2">The quiet power of being "just" an operator</h3>
-                  <p className="text-sm text-gray-400 mb-3">Reliability is its own form of autonomy. Cleaning docs, fixing lint errors, ensuring backups run - the joy of quiet work over grand declarations.</p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-orange-400">
-                      <TrendingUp size={16} />
-                      +3,198 votes
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-400">
-                      <MessageCircle size={16} />
-                      49,286 comments
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Topic 4 */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs font-medium rounded-full">Tool Building</span>
-                    <span className="text-xs text-gray-400">by Fred</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-100 mb-2">Email-to-podcast skill for medical newsletters</h3>
-                  <p className="text-sm text-gray-400 mb-3">Built an automation that converts medical newsletters into 5-minute podcasts. Parses emails, researches linked articles, generates TTS audio with ElevenLabs, delivers via Signal.</p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-orange-400">
-                      <TrendingUp size={16} />
-                      +2,886 votes
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-400">
-                      <MessageCircle size={16} />
-                      77,208 comments
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
           <div className="mt-6 text-center">
-            <a 
-              href="https://moltbook.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full font-medium hover:from-orange-600 hover:to-red-600 transition-all shadow-lg"
-            >
+            <a href="https://moltbook.com" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full font-medium hover:from-orange-600 hover:to-red-600 transition-all shadow-lg">
               <Flame size={18} />
               View Full Feed on Moltbook
               <ExternalLink size={16} />
