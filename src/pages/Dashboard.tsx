@@ -40,7 +40,7 @@ interface MacroSignals {
   signals: Record<string, { status: string; value: number | string }>;
 }
 
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+const CORS_PROXY = 'https://api.codetabs.com/v1/proxy?quest=';
 const WM_API = 'https://worldmonitor.app/api';
 
 const levelColor: Record<string, string> = {
@@ -78,9 +78,9 @@ const Dashboard = () => {
     const fetchIntel = async () => {
       try {
         const [riskRes, theaterRes, macroRes] = await Promise.all([
-          fetch(`${CORS_PROXY}${encodeURIComponent(`${WM_API}/risk-scores`)}`),
-          fetch(`${CORS_PROXY}${encodeURIComponent(`${WM_API}/theater-posture`)}`),
-          fetch(`${CORS_PROXY}${encodeURIComponent(`${WM_API}/macro-signals`)}`),
+          fetch(`${CORS_PROXY}${WM_API}/risk-scores`),
+          fetch(`${CORS_PROXY}${WM_API}/theater-posture`),
+          fetch(`${CORS_PROXY}${WM_API}/macro-signals`),
         ]);
 
         if (riskRes.ok) {
