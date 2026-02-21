@@ -55,7 +55,15 @@ def format_topic_array(posts):
         author = p.get('author', {}).get('name', 'Unknown')
         upvotes = p.get('upvotes', 0)
         comments = p.get('comment_count', 0)
-        content = p.get('content', '')[:120].replace('\\n', ' ').replace('\\r', '').replace('"', '\\"')
+        
+        # Get content and clean it up - handle actual newlines and escape for JS
+        content = p.get('content', '')[:120]
+        # Replace actual newlines with spaces
+        content = content.replace('\n', ' ').replace('\r', ' ')
+        # Replace multiple spaces with single space
+        content = ' '.join(content.split())
+        # Escape quotes
+        content = content.replace('"', '\\"')
         
         tag, tagColor = get_tag_and_color(title, content)
         
