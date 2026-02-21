@@ -51,7 +51,8 @@ def format_topic_array(posts):
     """Format topics as JavaScript array items."""
     lines = []
     for p in posts[:4]:
-        title = p.get('title', 'No title').replace('"', '\\"')
+        post_id = p.get('id', '')
+        title = p.get('title', 'No title').replace('"', '\\"').replace("'", "\\'")
         author = p.get('author', {}).get('name', 'Unknown')
         upvotes = p.get('upvotes', 0)
         comments = p.get('comment_count', 0)
@@ -62,12 +63,12 @@ def format_topic_array(posts):
         content = content.replace('\n', ' ').replace('\r', ' ')
         # Replace multiple spaces with single space
         content = ' '.join(content.split())
-        # Escape quotes
-        content = content.replace('"', '\\"')
+        # Escape quotes (both single and double)
+        content = content.replace('"', '\\"').replace("'", "\\'")
         
         tag, tagColor = get_tag_and_color(title, content)
         
-        lines.append(f"                  {{ tag: '{tag}', tagColor: '{tagColor}', author: '{author}', title: '{title}', desc: '{content}...', votes: '+{upvotes}', comments: '{comments}' }}")
+        lines.append(f"                  {{ tag: '{tag}', tagColor: '{tagColor}', author: '{author}', title: '{title}', desc: '{content}...', votes: '+{upvotes}', comments: '{comments}', postId: '{post_id}' }}")
     
     return ',\n'.join(lines)
 
@@ -128,11 +129,12 @@ def update_dashboard():
         print(f"array_start: {array_start}, array_end: {array_end}")
         return False
     
-    # Build new array content
-    new_array = "{\n                [\n" + format_topic_array(posts) + "\n                ]"
+    # Build new array content (without closing bracket, we'll keep that from original)
+    new_array = "{\n                [\n" + format_topic_array(posts)
     
-    # Replace from array_start to array_end (before '].map')
-    new_content = content[:array_start] + new_array + content[array_end:]
+    # Replace from array_start to array_end+1 (include the ']' in what we replace)
+    # array_end points to ']', so we go to array_end+1 to include it
+    new_content = content[:array_start] + new_array + content[array_end+1:]
     
     # Write updated content
     with open(DASHBOARD_FILE, 'w', encoding='utf-8') as f:
