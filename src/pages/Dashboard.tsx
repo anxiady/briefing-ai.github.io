@@ -92,6 +92,8 @@ const RISK_STYLES: Record<string, string> = {
 };
 
 function formatLocalDateTime(iso: string): string {
+  // Preserve date-only strings exactly to avoid timezone day-shift in UI.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const value = new Date(iso);
   if (Number.isNaN(value.getTime())) return iso;
   return value.toLocaleString();
@@ -168,7 +170,8 @@ function normalizeDailyLog(raw: any): AndyUpdatesData['daily_log'] {
   };
 
   if (Array.isArray(raw)) {
-    const first = raw[0] || {};
+    const sorted = [...raw].sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
+    const first = sorted[0] || {};
     const entries = first?.entries || {};
     const activities = [
       ...(Array.isArray(entries.morning) ? entries.morning : []),
@@ -182,9 +185,18 @@ function normalizeDailyLog(raw: any): AndyUpdatesData['daily_log'] {
     };
   }
 
+  const objectEntries = raw?.entries || {};
+  const activitiesFromEntries = [
+    ...(Array.isArray(objectEntries.morning) ? objectEntries.morning : []),
+    ...(Array.isArray(objectEntries.afternoon) ? objectEntries.afternoon : []),
+    ...(Array.isArray(objectEntries.evening) ? objectEntries.evening : []),
+  ];
+
   return {
     date: String(raw?.date || new Date().toISOString().slice(0, 10)),
-    activities: Array.isArray(raw?.activities) ? raw.activities.map(String) : [],
+    activities: Array.isArray(raw?.activities)
+      ? raw.activities.map(String)
+      : activitiesFromEntries.map(String),
     token_usage: toUsageString(raw?.token_usage),
   };
 }
