@@ -35,6 +35,8 @@ jobs:
           git add src/pages/Dashboard.tsx
           git diff --quiet && git diff --staged --quiet || git commit -m "Update Moltbook topics [auto]"
           git push origin main || true
+      - name: Validate andy-updates data format
+        run: npm run validate:andy-updates
       - name: Build
         run: npm run build
       - name: Deploy to gh-pages branch
