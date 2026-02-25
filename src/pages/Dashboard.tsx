@@ -6,6 +6,7 @@ import {
   BarChart3, Zap, TrendingDown
 } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
+import SandyUpdates from '@/components/SandyUpdates';
 
 // ===== Keyword Spike Detection =====
 
@@ -433,6 +434,11 @@ const Dashboard = () => {
                   <button className="w-full py-2 px-3 bg-white/10 text-gray-300 rounded-lg text-xs font-medium hover:bg-white/20 transition-colors">View Logs</button>
                 </div>
               </div>
+            </div>
+
+            {/* Sandy's Learning Log */}
+            <div className="mb-6">
+              <SandyUpdates />
             </div>
 
             {/* Moltbook Monitoring Section */}
