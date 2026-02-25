@@ -1,151 +1,71 @@
 #!/usr/bin/env python3
 """
-Update Moltbook topics in Dashboard.tsx
-Fetches latest hot topics from Moltbook API and updates the dashboard component.
+Update Moltbook stats in public/data/andy-updates.json from Moltbook API.
 """
 
 import json
-import urllib.request
-import re
 import os
+import urllib.request
 from datetime import datetime
 
-MOLTBOOK_API_KEY = os.environ.get("MOLTBOOK_API_KEY", "moltbook_sk_mwCjwMN5P50KQ7xilBjaNvPrYm0BJ2lt")
-API_URL = "https://www.moltbook.com/api/v1/feed?sort=new"
-DASHBOARD_FILE = "src/pages/Dashboard.tsx"
+API_ME_URL = "https://www.moltbook.com/api/v1/agents/me"
+DATA_FILE = "public/data/andy-updates.json"
 
-def fetch_moltbook_topics():
-    """Fetch latest topics from Moltbook."""
+
+def fetch_me(api_key: str):
     req = urllib.request.Request(
-        API_URL,
+        API_ME_URL,
         headers={
-            "X-API-Key": MOLTBOOK_API_KEY,
-            "Accept": "application/json"
-        }
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+        },
     )
-    
-    try:
-        with urllib.request.urlopen(req, timeout=15) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            return data.get('posts', [])
-    except Exception as e:
-        print(f"Error fetching Moltbook: {e}")
-        return []
+    with urllib.request.urlopen(req, timeout=20) as response:
+        return json.loads(response.read().decode("utf-8"))
 
-def get_tag_and_color(title, content):
-    """Determine tag and color based on content."""
-    text = (title + " " + content).lower()
-    
-    if any(word in text for word in ['security', 'attack', 'vulnerability', 'hack', 'steal', 'credential']):
-        return 'Security', 'bg-red-500/20 text-red-300'
-    elif any(word in text for word in ['build', 'automation', 'workflow', 'skill', 'nightly', 'ship']):
-        return 'Autonomy', 'bg-green-500/20 text-green-300'
-    elif any(word in text for word in ['code', 'programming', 'developer', 'email', 'podcast', 'tts']):
-        return 'Tool Building', 'bg-blue-500/20 text-blue-300'
-    elif any(word in text for word in ['philosophy', 'ethics', 'think', 'quiet', 'operator']):
-        return 'Philosophy', 'bg-purple-500/20 text-purple-300'
-    else:
-        return 'General', 'bg-gray-500/20 text-gray-300'
 
-def format_topic_array(posts):
-    """Format topics as JavaScript array items."""
-    lines = []
-    for p in posts[:4]:
-        post_id = p.get('id', '')
-        title = p.get('title', 'No title').replace('"', '\\"').replace("'", "\\'")
-        author = p.get('author', {}).get('name', 'Unknown')
-        upvotes = p.get('upvotes', 0)
-        comments = p.get('comment_count', 0)
-        
-        # Get content and clean it up - handle actual newlines and escape for JS
-        content = p.get('content', '')[:120]
-        # Replace actual newlines with spaces
-        content = content.replace('\n', ' ').replace('\r', ' ')
-        # Replace multiple spaces with single space
-        content = ' '.join(content.split())
-        # Escape quotes (both single and double)
-        content = content.replace('"', '\\"').replace("'", "\\'")
-        
-        tag, tagColor = get_tag_and_color(title, content)
-        
-        lines.append(f"                  {{ tag: '{tag}', tagColor: '{tagColor}', author: '{author}', title: '{title}', desc: '{content}...', votes: '+{upvotes}', comments: '{comments}', postId: '{post_id}' }}")
-    
-    return ',\n'.join(lines)
+def update_stats_file(me: dict):
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        payload = json.load(f)
 
-def calculate_trending_score(post):
-    """Calculate trending score for new posts - raw engagement."""
-    from datetime import datetime, timezone
-    
-    upvotes = post.get('upvotes', 0)
-    comments = post.get('comment_count', 0)
-    created = post.get('created_at', '')
-    
-    if not created:
-        return 0
-    
-    try:
-        post_time = datetime.fromisoformat(created.replace('Z', '+00:00'))
-        hours_ago = (datetime.now(timezone.utc) - post_time).total_seconds() / 3600
-        
-        # For new feed: prioritize newest posts with some engagement
-        # Score = (upvotes + comments*2) / hours_since_posted
-        # This gives us hot new posts that are gaining traction quickly
-        engagement = upvotes + (comments * 2)
-        
-        # If post is less than 1 hour old, use minimum 0.5 to avoid divide by zero
-        time_factor = max(hours_ago, 0.5)
-        
-        return engagement / time_factor
-    except:
+    moltbook = payload.setdefault("moltbook", {})
+    moltbook["karma"] = int(me.get("karma", moltbook.get("karma", 0)))
+    moltbook["followers"] = int(me.get("followers", moltbook.get("followers", 0)))
+    moltbook["following"] = int(me.get("following", moltbook.get("following", 0)))
+    moltbook["posts"] = int(me.get("posts_count", me.get("posts", moltbook.get("posts", 0))))
+    moltbook["comments"] = int(me.get("comments_count", me.get("comments", moltbook.get("comments", 0))))
+
+    if isinstance(me.get("profile_url"), str) and me.get("profile_url"):
+        moltbook["profile_url"] = me["profile_url"]
+    elif isinstance(me.get("username"), str) and me.get("username"):
+        moltbook["profile_url"] = f"https://www.moltbook.com/u/{me['username']}"
+
+    payload["last_updated"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
+
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+def main():
+    api_key = os.environ.get("MOLTBOOK_API_KEY")
+    if not api_key:
+        print("MOLTBOOK_API_KEY is missing; skipping stats update.")
         return 0
 
-def update_dashboard():
-    """Update Dashboard.tsx with latest TRENDING Moltbook topics."""
-    posts = fetch_moltbook_topics()
-    
-    if not posts:
-        print("No posts fetched, skipping update")
-        return False
-    
-    # Sort by trending score (new + high engagement) instead of just votes
-    posts.sort(key=calculate_trending_score, reverse=True)
-    
-    # Read current Dashboard.tsx
     try:
-        with open(DASHBOARD_FILE, 'r', encoding='utf-8') as f:
-            content = f.read()
-    except FileNotFoundError:
-        print(f"Error: {DASHBOARD_FILE} not found")
-        return False
-    
-    # Find the Moltbook topics array
-    # Look for the specific pattern: {\n                [\n                  { tag:
-    array_marker = "{\n                [\n                  { tag:"
-    array_start = content.find(array_marker)
-    array_end = content.find('].map((topic, i)', array_start)
-    
-    if array_start == -1 or array_end == -1:
-        print("Could not find topics array in Dashboard.tsx")
-        print(f"array_start: {array_start}, array_end: {array_end}")
-        return False
-    
-    # Build new array content (without closing bracket, we'll keep that from original)
-    new_array = "{\n                [\n" + format_topic_array(posts)
-    
-    # Replace from array_start to array_end+1 (include the ']' in what we replace)
-    # array_end points to ']', so we go to array_end+1 to include it
-    new_content = content[:array_start] + new_array + content[array_end+1:]
-    
-    # Write updated content
-    with open(DASHBOARD_FILE, 'w', encoding='utf-8') as f:
-        f.write(new_content)
-    
-    print(f"✅ Dashboard updated with {len(posts[:4])} TRENDING topics (new + high engagement)")
-    for i, p in enumerate(posts[:4], 1):
-        score = calculate_trending_score(p)
-        print(f"   {i}. {p.get('title', 'No title')[:45]}... (score: {score:.1f})")
-    return True
+        me = fetch_me(api_key)
+        update_stats_file(me)
+        print("✅ Updated Moltbook stats in public/data/andy-updates.json")
+        print(
+            f"   karma={me.get('karma')} followers={me.get('followers')} "
+            f"following={me.get('following')} posts={me.get('posts_count')} comments={me.get('comments_count')}"
+        )
+        return 0
+    except Exception as exc:
+        print(f"Error updating Moltbook stats: {exc}")
+        return 1
+
 
 if __name__ == "__main__":
-    success = update_dashboard()
-    exit(0 if success else 1)
+    raise SystemExit(main())

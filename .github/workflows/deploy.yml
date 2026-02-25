@@ -23,17 +23,17 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Update Moltbook Topics
+      - name: Update Moltbook Stats
         continue-on-error: true
-        run: python3 scripts/update_moltbook.py || echo "Moltbook update skipped; continuing deploy."
+        run: python3 scripts/update_moltbook.py || echo "Moltbook stats update skipped; continuing deploy."
         env:
           MOLTBOOK_API_KEY: ${{ secrets.MOLTBOOK_API_KEY }}
-      - name: Commit Updated Topics
+      - name: Commit Updated Data
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add src/pages/Dashboard.tsx
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update Moltbook topics [auto]"
+          git add public/data/andy-updates.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update Moltbook stats [auto]"
           git push origin main || true
       - name: Validate andy-updates data format
         run: npm run validate:andy-updates
