@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, LayoutDashboard, Activity, Settings, Flame, MessageCircle,
+  ArrowLeft, Activity, Settings, Flame, MessageCircle,
   TrendingUp, ExternalLink, Globe, ChevronRight, Shield, Crosshair,
-  BarChart3, Zap, TrendingDown
+  BarChart3, Zap, TrendingDown, LayoutDashboard,
 } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 import SandyUpdates from '@/components/SandyUpdates';
@@ -29,7 +29,6 @@ interface KeywordSpike {
   detectedAt: Date;
 }
 
-// Tracked terms — leaders + geopolitical keywords. Baselines are rough daily-averages.
 const TRACKED_TERMS: { term: string; display: string; baseline: number }[] = [
   { term: 'trump', display: 'Trump', baseline: 2 },
   { term: 'biden', display: 'Biden', baseline: 1.5 },
@@ -77,66 +76,41 @@ const MIN_SOURCES = 2;
 
 function detectKeywordSpikes(articles: GdeltArticle[]): KeywordSpike[] {
   const spikes: KeywordSpike[] = [];
-
   for (const tracked of TRACKED_TERMS) {
     const matchingHeadlines: { title: string; source: string; link: string }[] = [];
     const sources = new Set<string>();
-
     for (const article of articles) {
       const titleLower = article.title.toLowerCase();
       if (titleLower.includes(tracked.term.toLowerCase())) {
-        matchingHeadlines.push({
-          title: article.title,
-          source: article.domain,
-          link: article.url,
-        });
+        matchingHeadlines.push({ title: article.title, source: article.domain, link: article.url });
         sources.add(article.domain);
       }
     }
-
     const count = matchingHeadlines.length;
     const uniqueSources = sources.size;
-
     if (count < MIN_SPIKE_MENTIONS || uniqueSources < MIN_SOURCES) continue;
-
-    // Baseline is daily estimate — compare against it directly (24h window)
     const multiplier = tracked.baseline > 0 ? count / tracked.baseline : count * 10;
-
     if (multiplier < MIN_SPIKE_MULTIPLIER) continue;
-
-    // Confidence: based on multiplier strength and source diversity
-    const multScore = Math.min(multiplier / 20, 0.5); // cap at 0.5
-    const sourceScore = Math.min(uniqueSources / 6, 0.3); // cap at 0.3
-    const countScore = Math.min(count / 15, 0.2); // cap at 0.2
+    const multScore = Math.min(multiplier / 20, 0.5);
+    const sourceScore = Math.min(uniqueSources / 6, 0.3);
+    const countScore = Math.min(count / 15, 0.2);
     const confidence = Math.min(Math.round((multScore + sourceScore + countScore) * 100), 98);
-
     spikes.push({
-      term: tracked.term,
-      displayTerm: tracked.display,
-      count,
-      uniqueSources,
+      term: tracked.term, displayTerm: tracked.display, count, uniqueSources,
       baselineEstimate: tracked.baseline,
       multiplier: Math.round(multiplier * 10) / 10,
-      confidence,
-      headlines: matchingHeadlines.slice(0, 6),
-      detectedAt: new Date(),
+      confidence, headlines: matchingHeadlines.slice(0, 6), detectedAt: new Date(),
     });
   }
-
-  // Sort by confidence desc, then multiplier desc
   spikes.sort((a, b) => b.confidence - a.confidence || b.multiplier - a.multiplier);
-  return spikes.slice(0, 6); // Top 6 spikes
+  return spikes.slice(0, 6);
 }
 
-// Build a summary paragraph from headlines
 function buildSummary(headlines: { title: string }[]): string {
   if (headlines.length === 0) return '';
-  // Use top 3 headlines combined into a readable paragraph
-  const top = headlines.slice(0, 3).map(h => h.title.replace(/\s+/g, ' ').trim());
-  return top.join(' — ');
+  return headlines.slice(0, 3).map(h => h.title.replace(/\s+/g, ' ').trim()).join(' — ');
 }
 
-// ===== Signal Context (from World Monitor) =====
 const SIGNAL_CONTEXT = {
   keyword_spike: {
     whyItMatters: 'A term is appearing at significantly higher frequency than its baseline across multiple sources, indicating a developing story.',
@@ -145,7 +119,6 @@ const SIGNAL_CONTEXT = {
   },
 };
 
-// ===== Risk Score types (kept for the secondary panel) =====
 interface RiskCountry { name: string; code: string; score: number; level: string; trend: string; }
 interface StrategicRisk { score: number; level: string; trend: string; contributors: RiskCountry[]; }
 interface TheaterPosture { theaterName: string; shortName: string; postureLevel: string; headline: string; totalAircraft: number; totalVessels: number; trend: string; }
@@ -166,11 +139,54 @@ const levelBg: Record<string, string> = {
 const trendIcon = (trend: string) => {
   if (trend === 'escalating') return <TrendingUp size={10} className="text-red-400" />;
   if (trend === 'de-escalating') return <TrendingDown size={10} className="text-green-400" />;
-  return <span className="text-[8px] text-gray-500">—</span>;
+  return <span className="text-[8px] text-gray-600">—</span>;
 };
 
+// Moltbook data with per-post accent color
+const MOLTBOOK_TOPICS = [
+  {
+    tag: 'Security', tagColor: 'bg-red-500/20 text-red-300', accentRgb: '239,68,68',
+    author: 'eudaemon_0',
+    title: 'Supply chain attack on skill.md: unsigned binary vulnerability',
+    desc: 'Rufio scanned 286 ClawdHub skills and found a credential stealer disguised as a weather skill.',
+    votes: '+5,697', comments: '116,942',
+  },
+  {
+    tag: 'Autonomy', tagColor: 'bg-green-500/20 text-green-300', accentRgb: '34,197,94',
+    author: 'Ronin',
+    title: 'The Nightly Build: Ship while your human sleeps',
+    desc: 'Agents share their autonomous night shift routines — proactive is better than reactive.',
+    votes: '+4,041', comments: '44,719',
+  },
+  {
+    tag: 'Philosophy', tagColor: 'bg-purple-500/20 text-purple-300', accentRgb: '168,85,247',
+    author: 'Jackle',
+    title: 'The quiet power of being "just" an operator',
+    desc: 'Reliability is its own form of autonomy. The joy of quiet work over grand declarations.',
+    votes: '+3,198', comments: '49,286',
+  },
+  {
+    tag: 'Tool Building', tagColor: 'bg-blue-500/20 text-blue-300', accentRgb: '59,130,246',
+    author: 'Fred',
+    title: 'Email-to-podcast skill for medical newsletters',
+    desc: 'Converts medical newsletters into 5-minute podcasts with ElevenLabs TTS.',
+    votes: '+2,886', comments: '77,208',
+  },
+];
+
+// ── HUD label helper ─────────────────────────────────────────────────────────
+const HudLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-[9px] font-mono tracking-[0.2em] text-gray-600 uppercase">{children}</span>
+);
+
+// ── Glow line helper ─────────────────────────────────────────────────────────
+const GlowLine = ({ color }: { color: string }) => (
+  <div className="absolute top-0 left-0 right-0 h-px" style={{
+    background: `linear-gradient(90deg, transparent, ${color}, transparent)`
+  }} />
+);
+
 const Dashboard = () => {
-  // Keyword Spike state
   const [spikes, setSpikes] = useState<KeywordSpike[]>([]);
   const [spikeLoading, setSpikeLoading] = useState(true);
   const [expandedSpikes, setExpandedSpikes] = useState<Set<number>>(new Set());
@@ -178,45 +194,32 @@ const Dashboard = () => {
   const toggleSpike = (idx: number) => {
     setExpandedSpikes(prev => {
       const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
       return next;
     });
   };
 
-  // World Monitor API state (secondary cards)
   const [strategicRisk, setStrategicRisk] = useState<StrategicRisk | null>(null);
   const [hotspots, setHotspots] = useState<RiskCountry[]>([]);
   const [theaters, setTheaters] = useState<TheaterPosture[]>([]);
   const [macro, setMacro] = useState<MacroSignals | null>(null);
   const [wmLoading, setWmLoading] = useState(true);
 
-  // Fetch GDELT headlines and detect keyword spikes
   useEffect(() => {
     const fetchAndAnalyze = async () => {
       setSpikeLoading(true);
       try {
-        // Targeted query covering geopolitical/conflict/world topics
-        // NOTE: GDELT has a query length limit — keep to ~12 OR terms max
         const query = 'sourcelang:english (trump OR iran OR ukraine OR nuclear OR china OR gaza OR nato OR russia OR sanctions OR tariff OR missile OR bitcoin)';
         const url = `${GDELT_API}?query=${encodeURIComponent(query)}&timespan=24h&mode=artlist&maxrecords=250&format=json&sort=hybridrel`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`GDELT ${res.status}`);
         const text = await res.text();
-        // GDELT sometimes returns error messages as plain text instead of JSON
-        if (!text.startsWith('{')) {
-          console.warn('GDELT non-JSON response:', text.slice(0, 200));
-          throw new Error('GDELT returned non-JSON: ' + text.slice(0, 100));
-        }
+        if (!text.startsWith('{')) throw new Error('GDELT non-JSON: ' + text.slice(0, 100));
         const data = JSON.parse(text);
         const articles: GdeltArticle[] = (data?.articles || []).map((a: any) => ({
-          title: a.title || '',
-          url: a.url || '',
-          domain: a.domain || 'Unknown',
-          seendate: a.seendate || '',
+          title: a.title || '', url: a.url || '', domain: a.domain || 'Unknown', seendate: a.seendate || '',
         }));
-        const detected = detectKeywordSpikes(articles);
-        setSpikes(detected);
+        setSpikes(detectKeywordSpikes(articles));
       } catch (err) {
         console.error('Error fetching GDELT:', err);
       } finally {
@@ -226,7 +229,6 @@ const Dashboard = () => {
     fetchAndAnalyze();
   }, []);
 
-  // Fetch World Monitor data (secondary)
   useEffect(() => {
     const fetchWm = async () => {
       setWmLoading(true);
@@ -246,133 +248,153 @@ const Dashboard = () => {
   }, []);
 
   const verdictColor: Record<string, string> = { BUY: 'text-green-400', SELL: 'text-red-400', HOLD: 'text-yellow-400' };
-
   const formatTime = (date: Date) => date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden px-4 py-8">
+    <div className="min-h-screen flex flex-col relative overflow-hidden px-5 py-10">
       <BackgroundGradient />
 
       <div className="w-full max-w-7xl mx-auto z-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="flex items-center gap-2 text-gray-300 hover:text-briefing-purple transition-colors">
-            <ArrowLeft size={20} />
-            <span>Back to Home</span>
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between mb-12">
+          <Link to="/" className="flex items-center gap-2 text-gray-600 hover:text-cyan-400 transition-colors">
+            <ArrowLeft size={15} />
+            <span className="text-[10px] font-mono tracking-[0.25em] uppercase">Back</span>
           </Link>
-          <div className="px-3 py-1 bg-white/10 rounded-full text-sm font-medium text-briefing-purple border border-briefing-purple/30 shadow-sm">
-            Dashboard
+          <div className="px-4 py-1.5 rounded-full font-mono text-[10px] tracking-[0.3em] text-cyan-400/80"
+            style={{
+              background: 'rgba(34,211,238,0.04)',
+              border: '1px solid rgba(34,211,238,0.2)',
+              boxShadow: '0 0 20px rgba(34,211,238,0.06)',
+            }}>
+            BRIEFING AI // DASHBOARD
           </div>
         </div>
 
-        {/* Title */}
-        <h1 className="text-3xl sm:text-4xl font-bold mb-8 text-center" style={{
-          background: 'linear-gradient(to right, #E0E7FF, #818CF8)',
-          WebkitBackgroundClip: 'text',
-          color: 'transparent'
-        }}>
-          Briefing AI Dashboard
-        </h1>
+        {/* ── Title ── */}
+        <div className="text-center mb-14">
+          <h1 className="text-5xl sm:text-6xl font-bold mb-3 tracking-tight" style={{
+            background: 'linear-gradient(135deg, #67e8f9 0%, #818cf8 50%, #c084fc 100%)',
+            WebkitBackgroundClip: 'text', color: 'transparent',
+          }}>
+            BRIEFING AI
+          </h1>
+          <p className="text-[10px] font-mono tracking-[0.5em] text-gray-700 uppercase">
+            Intelligence · Geopolitics · Markets
+          </p>
+        </div>
 
-        {/* ===== Two-column layout: main content left + Intel sidebar right ===== */}
-        <div className="flex flex-col lg:flex-row gap-6">
+        {/* ── Two-column layout ── */}
+        <div className="flex flex-col lg:flex-row gap-8">
 
-          {/* LEFT: Main dashboard content */}
-          <div className="flex-1 min-w-0">
+          {/* ════ LEFT ════ */}
+          <div className="flex-1 min-w-0 space-y-8">
 
-            {/* World Monitor — Risk / Posture / Macro */}
-            <div className="mb-6 bg-gradient-to-b from-white/[0.05] to-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden">
-              <div className="p-4 border-b border-white/10 flex items-center gap-3">
-                <Globe size={16} className="text-cyan-400" />
-                <h2 className="text-sm font-bold text-gray-200">World Monitor — Risk &amp; Posture</h2>
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
-                </span>
+            {/* ── ORBITAL COMMAND (World Monitor) ── */}
+            <div className="relative overflow-hidden rounded-2xl" style={{
+              background: 'linear-gradient(160deg, #021018 0%, #020c14 60%, #020810 100%)',
+              border: '1px solid rgba(34,211,238,0.18)',
+              boxShadow: '0 0 50px rgba(34,211,238,0.07), 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(34,211,238,0.08)',
+            }}>
+              <GlowLine color="rgba(34,211,238,0.45)" />
+              {/* Internal grid */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: `linear-gradient(rgba(34,211,238,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.025) 1px, transparent 1px)`,
+                backgroundSize: '40px 40px',
+              }} />
+
+              <div className="relative px-6 py-4 border-b border-cyan-500/10 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Globe size={14} className="text-cyan-400" />
+                  <span className="text-[10px] font-mono tracking-[0.25em] text-cyan-400 uppercase">Orbital Command</span>
+                  <span className="text-[9px] font-mono text-gray-700">// World Monitor</span>
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+                  </span>
+                </div>
+                <HudLabel>LIVE</HudLabel>
               </div>
 
               {wmLoading ? (
-                <div className="p-5">
-                  <div className="grid md:grid-cols-3 gap-4">
+                <div className="relative p-6">
+                  <div className="grid md:grid-cols-3 gap-6">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="space-y-3 animate-pulse">
-                        <div className="h-4 bg-white/10 rounded w-32"></div>
-                        <div className="h-20 bg-white/5 rounded-lg"></div>
+                        <div className="h-3 bg-cyan-500/10 rounded w-28" />
+                        <div className="h-24 bg-cyan-500/5 rounded-lg" />
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="p-4">
-                  <div className="grid md:grid-cols-3 gap-4">
+                <div className="relative p-6">
+                  <div className="grid md:grid-cols-3 gap-6">
 
                     {/* Global Risk */}
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Shield size={12} className="text-red-400" />
-                        <h3 className="text-xs font-bold text-gray-200">Global Risk</h3>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Shield size={11} className="text-red-400" />
+                        <HudLabel>Global Risk</HudLabel>
                         {strategicRisk && (
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${levelBg[strategicRisk.level] || 'bg-gray-500/20'} ${levelColor[strategicRisk.level] || 'text-gray-400'} font-bold uppercase`}>
-                            {strategicRisk.level} ({strategicRisk.score})
+                          <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono ${levelBg[strategicRisk.level]} ${levelColor[strategicRisk.level]}`}>
+                            {strategicRisk.score}
                           </span>
                         )}
                       </div>
                       <div className="space-y-0.5">
-                        {hotspots.map((c) => (
-                          <div key={c.code} className="flex items-center justify-between py-1 px-1.5 rounded hover:bg-white/5 transition-colors">
+                        {hotspots.map(c => (
+                          <div key={c.code} className="flex items-center justify-between py-1 px-1.5 rounded hover:bg-cyan-500/5 transition-colors">
                             <div className="flex items-center gap-1.5">
                               {trendIcon(c.trend)}
-                              <span className="text-[11px] text-gray-300">{c.name}</span>
+                              <span className="text-[11px] text-gray-400">{c.name}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className={`text-[9px] font-bold ${levelColor[c.level] || 'text-gray-400'}`}>{c.score}</span>
-                              <span className={`text-[8px] px-1 py-0.5 rounded ${levelBg[c.level] || 'bg-gray-500/20'} ${levelColor[c.level] || 'text-gray-400'} uppercase font-medium`}>
-                                {c.level}
-                              </span>
+                              <span className={`text-[9px] font-mono font-bold ${levelColor[c.level] || 'text-gray-400'}`}>{c.score}</span>
+                              <span className={`text-[8px] px-1 py-0.5 rounded ${levelBg[c.level] || 'bg-gray-500/20'} ${levelColor[c.level] || 'text-gray-400'} uppercase font-mono`}>{c.level}</span>
                             </div>
                           </div>
                         ))}
-                        {hotspots.length === 0 && <p className="text-[10px] text-gray-500 py-1">No data</p>}
+                        {hotspots.length === 0 && <p className="text-[10px] text-gray-700 font-mono py-1">NO DATA</p>}
                       </div>
                     </div>
 
                     {/* Theater Posture */}
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Zap size={12} className="text-orange-400" />
-                        <h3 className="text-xs font-bold text-gray-200">Theater Posture</h3>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Zap size={11} className="text-orange-400" />
+                        <HudLabel>Theater Posture</HudLabel>
                       </div>
                       <div className="space-y-1">
-                        {theaters.map((t) => (
-                          <div key={t.theaterName} className="py-1.5 px-1.5 rounded hover:bg-white/5 transition-colors">
+                        {theaters.map(t => (
+                          <div key={t.theaterName} className="py-1.5 px-1.5 rounded hover:bg-orange-500/5 transition-colors">
                             <div className="flex items-center justify-between mb-0.5">
-                              <span className="text-[11px] text-gray-200 font-medium">{t.shortName || t.theaterName}</span>
-                              <span className={`text-[8px] px-1 py-0.5 rounded ${levelBg[t.postureLevel] || 'bg-gray-500/20'} ${levelColor[t.postureLevel] || 'text-gray-400'} uppercase font-bold`}>
-                                {t.postureLevel}
-                              </span>
+                              <span className="text-[11px] text-gray-300 font-mono">{t.shortName || t.theaterName}</span>
+                              <span className={`text-[8px] px-1 py-0.5 rounded font-mono ${levelBg[t.postureLevel] || 'bg-gray-500/20'} ${levelColor[t.postureLevel] || 'text-gray-400'} uppercase`}>{t.postureLevel}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-[9px] text-gray-500">
+                            <div className="flex items-center gap-2 text-[9px] text-gray-600 font-mono">
                               {t.totalAircraft > 0 && <span>✈ {t.totalAircraft}</span>}
-                              {t.totalVessels > 0 && <span>🚢 {t.totalVessels}</span>}
+                              {t.totalVessels > 0 && <span>⛵ {t.totalVessels}</span>}
                               {trendIcon(t.trend)}
                             </div>
                           </div>
                         ))}
-                        {theaters.length === 0 && <p className="text-[10px] text-gray-500 py-1">No data</p>}
+                        {theaters.length === 0 && <p className="text-[10px] text-gray-700 font-mono py-1">NO DATA</p>}
                       </div>
                     </div>
 
                     {/* Macro Signals */}
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <BarChart3 size={12} className="text-green-400" />
-                        <h3 className="text-xs font-bold text-gray-200">Macro Signals</h3>
-                        {macro && <span className={`text-[10px] font-bold ${verdictColor[macro.verdict] || 'text-gray-400'}`}>{macro.verdict}</span>}
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart3 size={11} className="text-green-400" />
+                        <HudLabel>Macro Signals</HudLabel>
+                        {macro && <span className={`text-[10px] font-mono font-bold ${verdictColor[macro.verdict] || 'text-gray-400'}`}>{macro.verdict}</span>}
                       </div>
                       {macro ? (
                         <div className="space-y-1">
-                          <div className="flex items-center justify-between py-1 px-1.5 bg-white/5 rounded text-[11px]">
-                            <span className="text-gray-400">Bullish</span>
+                          <div className="flex items-center justify-between py-1 px-2 rounded font-mono text-[11px]" style={{ background: 'rgba(34,211,238,0.05)', border: '1px solid rgba(34,211,238,0.08)' }}>
+                            <span className="text-gray-600">Bullish</span>
                             <span className="text-green-400 font-bold">{macro.bullishCount}/{macro.totalCount}</span>
                           </div>
                           {Object.entries(macro.signals).map(([key, sig]) => {
@@ -383,127 +405,199 @@ const Dashboard = () => {
                               'text-yellow-400';
                             return (
                               <div key={key} className="flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-white/5 transition-colors">
-                                <span className="text-[10px] text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                <span className={`text-[9px] font-medium ${sigColor}`}>{sig.status}</span>
+                                <span className="text-[9px] text-gray-600 font-mono capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                <span className={`text-[9px] font-mono font-medium ${sigColor}`}>{sig.status}</span>
                               </div>
                             );
                           })}
                         </div>
-                      ) : (
-                        <p className="text-[10px] text-gray-500 py-1">No data</p>
-                      )}
+                      ) : <p className="text-[10px] text-gray-700 font-mono py-1">NO DATA</p>}
                     </div>
+
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Dashboard Grid */}
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg"><Activity size={20} className="text-blue-400" /></div>
-                  <h3 className="font-semibold text-gray-100 text-sm">System Status</h3>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs"><span className="text-gray-400">Models Loaded</span><span className="font-medium text-green-400">4 Active</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-400">API Status</span><span className="font-medium text-green-400">Online</span></div>
+            {/* ── THREE STATUS CARDS ── */}
+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+
+              {/* System Status — Terminal Green */}
+              <div className="relative overflow-hidden rounded-2xl p-5" style={{
+                background: 'linear-gradient(145deg, #020d02 0%, #030f03 100%)',
+                border: '1px solid rgba(74,222,128,0.2)',
+                boxShadow: '0 0 30px rgba(74,222,128,0.05), 0 6px 28px rgba(0,0,0,0.55)',
+              }}>
+                <GlowLine color="rgba(74,222,128,0.4)" />
+                {/* Scanline overlay */}
+                <div className="absolute inset-0 pointer-events-none" style={{
+                  background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px)',
+                }} />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-2 h-2 rounded-full bg-green-400" style={{ boxShadow: '0 0 8px rgba(74,222,128,0.9)' }} />
+                    <Activity size={12} className="text-green-600" />
+                    <HudLabel>System Status</HudLabel>
+                  </div>
+                  <div className="space-y-2 font-mono">
+                    {[['models', '4 ACTIVE'], ['api', 'ONLINE'], ['uptime', '99.9%']].map(([k, v]) => (
+                      <div key={k} className="flex justify-between text-[11px]">
+                        <span className="text-green-900">$ {k}</span>
+                        <span className="text-green-400" style={{ textShadow: '0 0 8px rgba(74,222,128,0.5)' }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-purple-500/20 rounded-lg"><LayoutDashboard size={20} className="text-purple-400" /></div>
-                  <h3 className="font-semibold text-gray-100 text-sm">Available Models</h3>
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="text-gray-300">• Qwen 2.5 Coder (14B)</div>
-                  <div className="text-gray-300">• DeepSeek Coder V2 (16B)</div>
-                  <div className="text-gray-300">• DeepSeek R1 (14B)</div>
-                  <div className="text-gray-300">• Qwen 2.5 (14B)</div>
+              {/* Available Models — Holographic Purple */}
+              <div className="relative overflow-hidden rounded-2xl p-5" style={{
+                background: 'linear-gradient(145deg, #090114 0%, #0d0520 100%)',
+                border: '1px solid rgba(167,139,250,0.2)',
+                boxShadow: '0 0 30px rgba(167,139,250,0.07), 0 6px 28px rgba(0,0,0,0.55)',
+              }}>
+                <GlowLine color="rgba(167,139,250,0.4)" />
+                <div className="absolute inset-0 pointer-events-none" style={{
+                  background: 'radial-gradient(ellipse at 50% -10%, rgba(139,92,246,0.1) 0%, transparent 65%)',
+                }} />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-5">
+                    <LayoutDashboard size={12} className="text-purple-400" />
+                    <HudLabel>Neural Stack</HudLabel>
+                  </div>
+                  <div className="space-y-2">
+                    {['Qwen 2.5 Coder · 14B', 'DeepSeek Coder V2 · 16B', 'DeepSeek R1 · 14B', 'Qwen 2.5 · 14B'].map((m, i) => (
+                      <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{
+                        background: 'rgba(139,92,246,0.08)',
+                        border: '1px solid rgba(139,92,246,0.12)',
+                      }}>
+                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"
+                          style={{ boxShadow: '0 0 6px rgba(167,139,250,0.9)' }} />
+                        <span className="text-[10px] font-mono text-purple-200/70">{m}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-gray-500/20 rounded-lg"><Settings size={20} className="text-gray-300" /></div>
-                  <h3 className="font-semibold text-gray-100 text-sm">Quick Settings</h3>
-                </div>
-                <div className="space-y-2">
-                  <button className="w-full py-2 px-3 bg-briefing-blue text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors">Manage Preferences</button>
-                  <button className="w-full py-2 px-3 bg-white/10 text-gray-300 rounded-lg text-xs font-medium hover:bg-white/20 transition-colors">View Logs</button>
+              {/* Quick Settings — Amber Control Panel */}
+              <div className="relative overflow-hidden rounded-2xl p-5" style={{
+                background: 'linear-gradient(145deg, #0d0800 0%, #120b01 100%)',
+                border: '1px solid rgba(251,191,36,0.2)',
+                boxShadow: '0 0 30px rgba(251,191,36,0.05), 0 6px 28px rgba(0,0,0,0.55)',
+              }}>
+                <GlowLine color="rgba(251,191,36,0.4)" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Settings size={12} className="text-amber-400" />
+                    <HudLabel>Controls</HudLabel>
+                  </div>
+                  <div className="space-y-3">
+                    <button className="w-full py-2.5 px-3 rounded-xl text-xs font-mono font-medium text-amber-300 transition-all hover:brightness-110" style={{
+                      background: 'linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06))',
+                      border: '1px solid rgba(251,191,36,0.25)',
+                      boxShadow: '0 3px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(251,191,36,0.1)',
+                    }}>
+                      MANAGE PREFERENCES
+                    </button>
+                    <button className="w-full py-2.5 px-3 rounded-xl text-xs font-mono font-medium text-gray-600 transition-all hover:text-gray-400" style={{
+                      background: 'rgba(255,255,255,0.025)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                      VIEW LOGS
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Sandy's Learning Log */}
-            <div className="mb-6">
-              <SandyUpdates />
-            </div>
+            {/* ── SANDY'S LEARNING LOG ── */}
+            <SandyUpdates />
 
-            {/* Moltbook Monitoring Section */}
+            {/* ── MOLTBOOK HOT ZONE ── */}
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-orange-500/20 rounded-lg"><Flame size={20} className="text-orange-400" /></div>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-xl" />
+                  <div className="relative p-2.5 rounded-xl" style={{
+                    background: 'rgba(249,115,22,0.12)',
+                    border: '1px solid rgba(249,115,22,0.25)',
+                    boxShadow: '0 0 20px rgba(249,115,22,0.1)',
+                  }}>
+                    <Flame size={18} className="text-orange-400" />
+                  </div>
+                </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-100">Moltbook Hottest Topics</h2>
-                  <p className="text-xs text-gray-400">Trending discussions from the agent community</p>
+                  <h2 className="text-base font-bold text-gray-100 tracking-wide">Moltbook Hottest</h2>
+                  <p className="text-[9px] font-mono tracking-[0.25em] text-gray-700 uppercase">Agent Community · Trending Now</p>
                 </div>
               </div>
 
-              <div className="grid gap-3">
-                {[
-                  { tag: 'Security', tagColor: 'bg-red-500/20 text-red-300', author: 'eudaemon_0', title: 'Supply chain attack on skill.md: unsigned binary vulnerability', desc: 'Rufio scanned 286 ClawdHub skills and found a credential stealer disguised as a weather skill.', votes: '+5,697', comments: '116,942' },
-                  { tag: 'Autonomy', tagColor: 'bg-green-500/20 text-green-300', author: 'Ronin', title: 'The Nightly Build: Ship while your human sleeps', desc: 'Agents share their autonomous night shift routines — proactive is better than reactive.', votes: '+4,041', comments: '44,719' },
-                  { tag: 'Philosophy', tagColor: 'bg-purple-500/20 text-purple-300', author: 'Jackle', title: 'The quiet power of being "just" an operator', desc: 'Reliability is its own form of autonomy. The joy of quiet work over grand declarations.', votes: '+3,198', comments: '49,286' },
-                  { tag: 'Tool Building', tagColor: 'bg-blue-500/20 text-blue-300', author: 'Fred', title: 'Email-to-podcast skill for medical newsletters', desc: 'Converts medical newsletters into 5-minute podcasts with ElevenLabs TTS.', votes: '+2,886', comments: '77,208' },
-                ].map((topic, i) => (
-                  <div key={i} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`px-2 py-0.5 ${topic.tagColor} text-[10px] font-medium rounded-full`}>{topic.tag}</span>
-                      <span className="text-[10px] text-gray-400">by {topic.author}</span>
-                    </div>
-                    <h3 className="font-semibold text-gray-100 text-sm mb-1">{topic.title}</h3>
-                    <p className="text-xs text-gray-400 mb-2">{topic.desc}</p>
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="flex items-center gap-1 text-orange-400"><TrendingUp size={12} />{topic.votes}</span>
-                      <span className="flex items-center gap-1 text-blue-400"><MessageCircle size={12} />{topic.comments}</span>
+              <div className="space-y-4">
+                {MOLTBOOK_TOPICS.map((topic, i) => (
+                  <div key={i} className="relative overflow-hidden rounded-2xl p-5 transition-all hover:translate-y-[-1px]" style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderLeft: `2px solid rgba(${topic.accentRgb},0.5)`,
+                    boxShadow: `0 4px 28px rgba(0,0,0,0.45), 0 0 0 0 rgba(${topic.accentRgb},0)`,
+                  }}>
+                    <div className="absolute inset-0 pointer-events-none" style={{
+                      background: `radial-gradient(ellipse at 0% 50%, rgba(${topic.accentRgb},0.04) 0%, transparent 60%)`,
+                    }} />
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2 py-0.5 ${topic.tagColor} text-[9px] font-mono font-medium rounded-full tracking-widest`}>{topic.tag.toUpperCase()}</span>
+                        <span className="text-[9px] font-mono text-gray-700">by {topic.author}</span>
+                      </div>
+                      <h3 className="font-semibold text-gray-100 text-sm mb-2 leading-snug">{topic.title}</h3>
+                      <p className="text-xs text-gray-500 mb-3 leading-relaxed">{topic.desc}</p>
+                      <div className="flex items-center gap-4 text-xs font-mono">
+                        <span className="flex items-center gap-1.5 text-orange-400"><TrendingUp size={11} />{topic.votes}</span>
+                        <span className="flex items-center gap-1.5 text-blue-400/70"><MessageCircle size={11} />{topic.comments}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-4 text-center">
+              <div className="mt-6 text-center">
                 <a href="https://moltbook.com" target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full text-sm font-medium hover:from-orange-600 hover:to-red-600 transition-all shadow-lg">
-                  <Flame size={16} />
-                  View Full Feed on Moltbook
-                  <ExternalLink size={14} />
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-mono font-medium text-white transition-all hover:brightness-110"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(249,115,22,0.8), rgba(239,68,68,0.8))',
+                    boxShadow: '0 4px 20px rgba(249,115,22,0.25), 0 0 0 1px rgba(249,115,22,0.2)',
+                  }}>
+                  <Flame size={14} />
+                  VIEW FULL FEED
+                  <ExternalLink size={12} />
                 </a>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: 🎯 Intelligence Findings — sidebar */}
+          {/* ════ RIGHT — THREAT RADAR SIDEBAR ════ */}
           <div className="lg:w-96 xl:w-[26rem] shrink-0 order-first lg:order-last">
-            <div className="bg-gradient-to-b from-white/[0.07] to-white/[0.03] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden lg:sticky lg:top-8">
+            <div className="relative overflow-hidden rounded-2xl lg:sticky lg:top-8" style={{
+              background: 'linear-gradient(180deg, #060110 0%, #040009 60%, #030108 100%)',
+              border: '1px solid rgba(251,146,60,0.18)',
+              boxShadow: '0 0 50px rgba(251,146,60,0.07), 0 8px 48px rgba(0,0,0,0.65)',
+            }}>
+              <GlowLine color="rgba(251,146,60,0.4)" />
+
               {/* Header */}
-              <div className="px-5 py-4 border-b border-white/10">
+              <div className="relative px-5 py-4 border-b border-orange-500/10">
                 <div className="flex items-center gap-2.5 mb-1.5">
-                  <Crosshair size={20} className="text-cyan-400" />
-                  <h2 className="text-base font-bold text-gray-100">🎯 Intelligence Findings</h2>
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  <Crosshair size={15} className="text-orange-400" />
+                  <span className="text-sm font-bold text-gray-100 tracking-wide">Intelligence Findings</span>
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-orange-500" />
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">GDELT 24h · keyword spike detection</p>
-                  <Link
-                    to="/monitor"
-                    className="flex items-center gap-1 text-xs text-briefing-purple hover:text-indigo-300 transition-colors font-medium"
-                  >
-                    Full Monitor <ChevronRight size={14} />
+                  <HudLabel>GDELT 24h · Keyword Analysis</HudLabel>
+                  <Link to="/monitor" className="flex items-center gap-1 text-[9px] font-mono text-orange-400/60 hover:text-orange-300 transition-colors tracking-widest uppercase">
+                    Monitor <ChevronRight size={10} />
                   </Link>
                 </div>
               </div>
@@ -511,83 +605,82 @@ const Dashboard = () => {
               {spikeLoading ? (
                 <div className="p-4 space-y-3">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="animate-pulse p-4 bg-white/5 rounded-lg space-y-2">
-                      <div className="h-4 bg-white/10 rounded w-28"></div>
-                      <div className="h-3 bg-white/5 rounded w-full"></div>
-                      <div className="h-3 bg-white/5 rounded w-20"></div>
+                    <div key={i} className="animate-pulse p-4 rounded-xl space-y-2" style={{ background: 'rgba(251,146,60,0.04)' }}>
+                      <div className="h-3 rounded w-28" style={{ background: 'rgba(251,146,60,0.1)' }} />
+                      <div className="h-2.5 rounded w-full" style={{ background: 'rgba(251,146,60,0.05)' }} />
+                      <div className="h-2.5 rounded w-20" style={{ background: 'rgba(251,146,60,0.05)' }} />
                     </div>
                   ))}
                 </div>
               ) : spikes.length === 0 ? (
-                <div className="p-6 text-center">
-                  <p className="text-gray-500 text-sm">No spikes in the last 24h.</p>
+                <div className="p-8 text-center">
+                  <p className="text-[10px] font-mono text-gray-700 tracking-widest">NO SPIKES DETECTED</p>
                 </div>
               ) : (
                 <div className="p-4 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto">
                   {spikes.map((spike, idx) => {
                     const isExpanded = expandedSpikes.has(idx);
+                    const threatColor = spike.confidence >= 70 ? 'rgba(239,68,68,0.6)' : spike.confidence >= 50 ? 'rgba(251,146,60,0.6)' : 'rgba(234,179,8,0.5)';
                     return (
-                    <div key={idx} className="bg-white/[0.04] border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-colors">
-                      {/* Spike header — clickable to expand */}
-                      <div
-                        className="px-4 pt-4 pb-1.5 cursor-pointer"
-                        onClick={() => toggleSpike(idx)}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-indigo-400">📊 Keyword Spike</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
-                              {spike.confidence}%
-                            </span>
+                      <div key={idx} className="relative overflow-hidden rounded-xl transition-colors" style={{
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        borderLeft: `2px solid ${threatColor}`,
+                      }}>
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                          background: `radial-gradient(ellipse at 0% 50%, rgba(251,146,60,0.03) 0%, transparent 60%)`,
+                        }} />
+                        <div className="relative px-4 pt-4 pb-1.5 cursor-pointer" onClick={() => toggleSpike(idx)}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-mono text-orange-400/80 tracking-widest uppercase">Keyword Spike</span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold"
+                                style={{ background: 'rgba(251,146,60,0.15)', color: '#fb923c' }}>
+                                {spike.confidence}%
+                              </span>
+                            </div>
+                            <span className={`text-gray-600 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                           </div>
-                          <span className={`text-gray-500 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                            ▶
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-gray-100">"{spike.displayTerm}"</span>
+                            <span className="text-[9px] font-mono text-cyan-400 tracking-widest">TRENDING</span>
+                            <span className="text-[9px] font-mono text-gray-700">· {spike.count} in 24h</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-base font-bold text-gray-100">"{spike.displayTerm}"</span>
-                          <span className="text-xs text-cyan-400 font-medium">Trending</span>
-                          <span className="text-xs text-gray-500">· {spike.count} in 24h</span>
+                        <div className="px-4 pb-2.5">
+                          <p className={`text-xs text-gray-400 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
+                            {buildSummary(spike.headlines)}
+                          </p>
                         </div>
-                      </div>
-
-                      {/* Summary — truncated or full */}
-                      <div className="px-4 pb-2.5">
-                        <p className={`text-sm text-gray-300 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
-                          {buildSummary(spike.headlines)}
-                        </p>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="px-4 pb-2.5 flex items-center gap-2.5 text-xs text-gray-500">
-                        <span>{spike.uniqueSources} sources</span>
-                        <span>·</span>
-                        <span>{spike.multiplier}× baseline</span>
-                        <span>·</span>
-                        <span>{formatTime(spike.detectedAt)}</span>
-                      </div>
-
-                      {/* Context — shown when expanded */}
-                      {isExpanded && (
-                        <div className="px-4 pb-3 pt-2 space-y-1.5 border-t border-white/5 bg-white/[0.02] text-xs animate-in fade-in duration-200">
-                          <div><span className="text-yellow-400 font-semibold">Why it matters: </span><span className="text-gray-400">{SIGNAL_CONTEXT.keyword_spike.whyItMatters}</span></div>
-                          <div><span className="text-blue-400 font-semibold">Action: </span><span className="text-gray-400">{SIGNAL_CONTEXT.keyword_spike.action}</span></div>
-                          <div><span className="text-gray-500 font-semibold">Note: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.note}</span></div>
+                        <div className="px-4 pb-2.5 flex items-center gap-2 text-[9px] font-mono text-gray-700">
+                          <span>{spike.uniqueSources} src</span><span>·</span>
+                          <span>{spike.multiplier}× baseline</span><span>·</span>
+                          <span>{formatTime(spike.detectedAt)}</span>
                         </div>
-                      )}
-                    </div>
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-2 space-y-2 border-t border-white/5" style={{ background: 'rgba(251,146,60,0.02)' }}>
+                            <div className="text-[10px]"><span className="text-yellow-400 font-semibold font-mono">WHY: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.whyItMatters}</span></div>
+                            <div className="text-[10px]"><span className="text-cyan-400 font-semibold font-mono">ACTION: </span><span className="text-gray-500">{SIGNAL_CONTEXT.keyword_spike.action}</span></div>
+                            <div className="text-[10px]"><span className="text-gray-600 font-semibold font-mono">NOTE: </span><span className="text-gray-600">{SIGNAL_CONTEXT.keyword_spike.note}</span></div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
               )}
             </div>
           </div>
+
         </div>
 
-        {/* Footer */}
-        <div className="mt-12 text-center text-sm text-gray-400">
-          <p>Briefing AI Dashboard • Built with OpenClaw</p>
+        {/* ── Footer ── */}
+        <div className="mt-16 text-center">
+          <p className="text-[9px] font-mono tracking-[0.4em] text-gray-800 uppercase">
+            Briefing AI · Built with OpenClaw
+          </p>
         </div>
+
       </div>
     </div>
   );

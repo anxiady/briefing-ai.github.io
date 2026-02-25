@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   BookOpen, TrendingUp, Trophy, Network, Zap, CalendarDays,
-  MessageCircle, ExternalLink, ChevronDown, ChevronRight, Flame
+  MessageCircle, ExternalLink, ChevronDown, ChevronRight, Flame, Satellite,
 } from 'lucide-react';
 
 const SANDY_URL =
   'https://raw.githubusercontent.com/anxiady/briefing-ai.github.io/main/public/sandy-updates.json';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface MoltbookStats {
   karma: number; followers: number; following: number;
@@ -49,16 +49,31 @@ interface SandyData {
   daily_log: DailyLogEntry[];
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const statusBadge = (s: LearningItem['status']) => {
-  if (s === 'done') return <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 font-bold">✓</span>;
-  if (s === 'in_progress') return <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-bold">…</span>;
-  return <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-gray-500 font-bold">—</span>;
+const statusPip = (s: LearningItem['status']) => {
+  if (s === 'done') return (
+    <span className="text-[8px] px-1.5 py-0.5 rounded font-mono font-bold tracking-widest"
+      style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
+      DONE
+    </span>
+  );
+  if (s === 'in_progress') return (
+    <span className="text-[8px] px-1.5 py-0.5 rounded font-mono font-bold tracking-widest"
+      style={{ background: 'rgba(250,204,21,0.12)', color: '#facc15', border: '1px solid rgba(250,204,21,0.2)' }}>
+      ACTIVE
+    </span>
+  );
+  return (
+    <span className="text-[8px] px-1.5 py-0.5 rounded font-mono font-bold tracking-widest"
+      style={{ background: 'rgba(255,255,255,0.04)', color: '#4b5563', border: '1px solid rgba(255,255,255,0.06)' }}>
+      QUEUED
+    </span>
+  );
 };
 
-const riskColor = (r: string) =>
-  r === 'low' ? 'text-green-400' : r === 'medium' ? 'text-yellow-400' : 'text-red-400';
+const riskGlow = (r: string) =>
+  r === 'low' ? '#34d399' : r === 'medium' ? '#facc15' : '#f87171';
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -66,33 +81,44 @@ const fmtDate = (iso: string) =>
 const fmtDay = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
-// ── Section wrapper ──────────────────────────────────────────────────────────
+// ── Glowline ──────────────────────────────────────────────────────────────────
+
+const TealGlowLine = () => (
+  <div className="absolute top-0 left-0 right-0 h-px" style={{
+    background: 'linear-gradient(90deg, transparent, rgba(45,212,191,0.5), transparent)',
+  }} />
+);
+
+// ── Section ───────────────────────────────────────────────────────────────────
 
 const Section = ({
-  icon, label, color, children, defaultOpen = false,
+  icon, label, accent = '#2dd4bf', children, defaultOpen = false,
 }: {
-  icon: React.ReactNode; label: string; color: string;
+  icon: React.ReactNode; label: string; accent?: string;
   children: React.ReactNode; defaultOpen?: boolean;
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-white/5 last:border-0">
+    <div className="border-b border-white/[0.04] last:border-0">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors"
+        style={{ background: open ? `rgba(${accent === '#2dd4bf' ? '45,212,191' : '255,255,255'},0.02)` : 'transparent' }}
       >
-        <div className="flex items-center gap-2">
-          <span className={color}>{icon}</span>
-          <span className="text-xs font-semibold text-gray-200">{label}</span>
+        <div className="flex items-center gap-2.5">
+          <span style={{ color: accent }}>{icon}</span>
+          <span className="text-[9px] font-mono tracking-[0.2em] uppercase" style={{ color: accent, opacity: 0.7 }}>{label}</span>
         </div>
-        {open ? <ChevronDown size={13} className="text-gray-500" /> : <ChevronRight size={13} className="text-gray-500" />}
+        {open
+          ? <ChevronDown size={11} className="text-gray-700" />
+          : <ChevronRight size={11} className="text-gray-700" />}
       </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      {open && <div className="px-5 pb-5">{children}</div>}
     </div>
   );
 };
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 const SandyUpdates = () => {
   const [data, setData] = useState<SandyData | null>(null);
@@ -108,15 +134,18 @@ const SandyUpdates = () => {
   }, []);
 
   if (loading) return (
-    <div className="bg-gradient-to-b from-white/[0.05] to-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg p-5 animate-pulse">
-      <div className="h-4 bg-white/10 rounded w-48 mb-3" />
-      {[...Array(3)].map((_, i) => <div key={i} className="h-3 bg-white/5 rounded w-full mb-2" />)}
+    <div className="relative overflow-hidden rounded-2xl p-6 animate-pulse" style={{
+      background: 'linear-gradient(145deg, #020e0d 0%, #020c0b 100%)',
+      border: '1px solid rgba(45,212,191,0.15)',
+    }}>
+      <div className="h-3 rounded w-40 mb-4" style={{ background: 'rgba(45,212,191,0.1)' }} />
+      {[...Array(4)].map((_, i) => <div key={i} className="h-2.5 rounded w-full mb-2" style={{ background: 'rgba(45,212,191,0.05)' }} />)}
     </div>
   );
 
   if (error || !data) return (
-    <div className="bg-white/5 rounded-2xl border border-white/10 p-4 text-center text-xs text-gray-500">
-      Sandy's updates unavailable
+    <div className="rounded-2xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <p className="text-[9px] font-mono text-gray-700 tracking-widest">SANDY TELEMETRY UNAVAILABLE</p>
     </div>
   );
 
@@ -127,76 +156,106 @@ const SandyUpdates = () => {
   const overall = Math.round(pct.reduce((a, b) => a + b, 0) / pct.length);
 
   return (
-    <div className="bg-gradient-to-b from-white/[0.05] to-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🤖</span>
-          <h2 className="text-sm font-bold text-gray-100">Sandy's Learning Log</h2>
+    <div className="relative overflow-hidden rounded-2xl" style={{
+      background: 'linear-gradient(160deg, #020f0e 0%, #020c0b 60%, #020909 100%)',
+      border: '1px solid rgba(45,212,191,0.18)',
+      boxShadow: '0 0 50px rgba(45,212,191,0.06), 0 8px 40px rgba(0,0,0,0.6)',
+    }}>
+      <TealGlowLine />
+
+      {/* Subtle radial glow */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(45,212,191,0.04) 0%, transparent 60%)',
+      }} />
+
+      {/* ── Header ── */}
+      <div className="relative px-5 py-4 border-b border-teal-500/10 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Satellite size={14} className="text-teal-400" />
+          <span className="text-[10px] font-mono tracking-[0.25em] text-teal-400 uppercase">Mission Control</span>
+          <span className="text-[9px] font-mono text-gray-700">// Sandy</span>
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-teal-500" />
           </span>
         </div>
-        <span className="text-[10px] text-gray-500">
-          {fmtDate(data.last_updated)}
-        </span>
+        <span className="text-[9px] font-mono text-gray-700">{fmtDate(data.last_updated)}</span>
       </div>
 
-      {/* Moltbook stats strip */}
-      <div className="px-4 py-3 border-b border-white/10 grid grid-cols-5 gap-2 text-center">
-        {[
-          { label: 'Karma', value: mb.karma },
-          { label: 'Posts', value: mb.total_posts },
-          { label: 'Comments', value: mb.total_comments },
-          { label: 'Following', value: mb.following },
-          { label: 'Followers', value: mb.followers },
-        ].map(({ label, value }) => (
-          <div key={label}>
-            <div className="text-sm font-bold text-indigo-300">{value}</div>
-            <div className="text-[9px] text-gray-500 uppercase tracking-wide">{label}</div>
+      {/* ── Telemetry strip ── */}
+      <div className="relative px-5 py-4 border-b border-teal-500/8">
+        <div className="text-[8px] font-mono tracking-[0.3em] text-gray-700 uppercase mb-3">Telemetry</div>
+        <div className="grid grid-cols-5 gap-2 text-center">
+          {[
+            { label: 'Karma', value: mb.karma },
+            { label: 'Posts', value: mb.total_posts },
+            { label: 'Cmts', value: mb.total_comments },
+            { label: 'Following', value: mb.following },
+            { label: 'Followers', value: mb.followers },
+          ].map(({ label, value }) => (
+            <div key={label} className="py-2 px-1 rounded-lg" style={{
+              background: 'rgba(45,212,191,0.04)',
+              border: '1px solid rgba(45,212,191,0.08)',
+            }}>
+              <div className="text-sm font-bold font-mono" style={{ color: '#5eead4' }}>{value}</div>
+              <div className="text-[8px] font-mono text-gray-700 uppercase tracking-wider mt-0.5">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Mission trajectory ── */}
+      <div className="relative px-5 py-4 border-b border-teal-500/8">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <div className="text-[8px] font-mono tracking-[0.3em] text-gray-700 uppercase">Mission Trajectory</div>
+            <div className="text-[10px] font-mono text-teal-300/70 mt-0.5">{ch.current_phase}</div>
           </div>
-        ))}
+          <div className="text-right">
+            <div className="text-lg font-bold font-mono" style={{ color: '#5eead4' }}>{overall}%</div>
+            <div className="text-[8px] font-mono text-gray-700">{ch.timeline}</div>
+          </div>
+        </div>
+        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(45,212,191,0.08)' }}>
+          <div className="h-full rounded-full transition-all duration-700" style={{
+            width: `${overall}%`,
+            background: 'linear-gradient(90deg, #0d9488, #2dd4bf)',
+            boxShadow: '0 0 8px rgba(45,212,191,0.4)',
+          }} />
+        </div>
+        <div className="flex justify-between mt-1">
+          <span className="text-[8px] font-mono text-gray-800">$1k</span>
+          <span className="text-[8px] font-mono text-gray-800">$1M</span>
+        </div>
       </div>
 
-      {/* Challenge progress strip */}
-      <div className="px-4 py-3 border-b border-white/10">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] font-semibold text-yellow-400">🏆 {ch.current_phase}</span>
-          <span className="text-[10px] text-gray-500">{overall}% overall</span>
-        </div>
-        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full transition-all"
-            style={{ width: `${overall}%` }} />
-        </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-[9px] text-gray-600">{ch.target_label}</span>
-          <span className="text-[9px] text-gray-600">{ch.timeline}</span>
-        </div>
-      </div>
+      {/* ── Collapsible sections ── */}
 
-      {/* Collapsible sections */}
-
-      {/* 1. Recent Activity */}
-      <Section icon={<Flame size={13} />} label="Recent Moltbook Activity" color="text-orange-400" defaultOpen>
+      {/* Recent Activity */}
+      <Section icon={<Flame size={12} />} label="Recent Activity" defaultOpen>
         <div className="space-y-2">
           {recent_activity.map((item, i) => (
-            <div key={i} className="flex items-start gap-2 py-1.5 px-2 bg-white/[0.03] rounded-lg">
-              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold mt-0.5 shrink-0 ${
-                item.type === 'post' ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'
-              }`}>
+            <div key={i} className="flex items-start gap-3 p-3 rounded-xl" style={{
+              background: 'rgba(45,212,191,0.03)',
+              border: '1px solid rgba(45,212,191,0.08)',
+            }}>
+              <span className="text-[8px] px-1.5 py-0.5 rounded font-mono font-bold mt-0.5 shrink-0 tracking-widest" style={
+                item.type === 'post'
+                  ? { background: 'rgba(249,115,22,0.12)', color: '#fb923c', border: '1px solid rgba(249,115,22,0.2)' }
+                  : { background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }
+              }>
                 {item.type === 'post' ? 'POST' : 'CMT'}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {item.community && <span className="text-[9px] text-gray-500">{item.community}</span>}
-                  <span className="text-[9px] text-gray-600">· {fmtDate(item.timestamp)}</span>
+                <div className="text-[9px] font-mono text-gray-700 mb-0.5">
+                  {item.community && <span className="text-teal-700/60">{item.community} · </span>}
+                  {fmtDate(item.timestamp)}
                 </div>
-                <p className="text-xs text-gray-200 leading-snug mt-0.5 line-clamp-2">{item.title}</p>
-                {item.preview && <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1 italic">"{item.preview}"</p>}
+                <p className="text-xs text-gray-300 leading-snug line-clamp-2">{item.title}</p>
+                {item.preview && <p className="text-[9px] text-gray-600 mt-0.5 italic line-clamp-1">"{item.preview}"</p>}
                 <a href={item.url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 text-[9px] text-briefing-purple hover:text-indigo-300 mt-0.5">
-                  View <ExternalLink size={9} />
+                  className="inline-flex items-center gap-0.5 text-[8px] font-mono text-teal-600 hover:text-teal-400 mt-1 tracking-widest">
+                  VIEW <ExternalLink size={8} />
                 </a>
               </div>
             </div>
@@ -204,24 +263,31 @@ const SandyUpdates = () => {
         </div>
       </Section>
 
-      {/* 2. Learning Progress */}
-      <Section icon={<BookOpen size={13} />} label="Learning Progress" color="text-cyan-400" defaultOpen>
-        <div className="space-y-3">
-          {learning_progress.map((subj) => {
+      {/* Learning Progress */}
+      <Section icon={<BookOpen size={12} />} label="Learning Progress" defaultOpen>
+        <div className="space-y-4">
+          {learning_progress.map(subj => {
             const done = subj.items.filter(i => i.status === 'done').length;
+            const pct = Math.round((done / subj.items.length) * 100);
             return (
               <div key={subj.subject}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-semibold text-gray-300">{subj.subject}</span>
-                  <span className="text-[9px] text-gray-500">{done}/{subj.items.length}</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-mono text-gray-400">{subj.subject}</span>
+                  <span className="text-[8px] font-mono text-teal-700">{done}/{subj.items.length}</span>
+                </div>
+                <div className="w-full h-0.5 rounded-full mb-2" style={{ background: 'rgba(45,212,191,0.08)' }}>
+                  <div className="h-full rounded-full" style={{
+                    width: `${pct}%`,
+                    background: 'linear-gradient(90deg, #0d9488, #2dd4bf)',
+                  }} />
                 </div>
                 <div className="space-y-0.5">
-                  {subj.items.map((item) => (
-                    <div key={item.topic} className="flex items-center justify-between px-2 py-0.5 rounded hover:bg-white/5">
-                      <span className={`text-[10px] ${item.status === 'not_started' ? 'text-gray-600' : 'text-gray-300'}`}>
+                  {subj.items.map(item => (
+                    <div key={item.topic} className="flex items-center justify-between px-2 py-1 rounded-lg hover:bg-teal-500/5 transition-colors">
+                      <span className={`text-[10px] font-mono ${item.status === 'not_started' ? 'text-gray-700' : 'text-gray-400'}`}>
                         {item.topic}
                       </span>
-                      {statusBadge(item.status)}
+                      {statusPip(item.status)}
                     </div>
                   ))}
                 </div>
@@ -231,16 +297,16 @@ const SandyUpdates = () => {
         </div>
       </Section>
 
-      {/* 3. Key Insights */}
-      <Section icon={<Zap size={13} />} label="Key Insights" color="text-yellow-400">
-        <div className="space-y-3">
-          {key_insights.map((entry) => (
+      {/* Key Insights */}
+      <Section icon={<Zap size={12} />} label="Insights Logged" accent="#facc15">
+        <div className="space-y-4">
+          {key_insights.map(entry => (
             <div key={entry.date}>
-              <div className="text-[9px] text-gray-500 mb-1">{fmtDay(entry.date)}</div>
-              <ul className="space-y-1">
+              <div className="text-[8px] font-mono tracking-widest text-gray-700 mb-2">{fmtDay(entry.date)}</div>
+              <ul className="space-y-1.5">
                 {entry.bullets.map((b, i) => (
-                  <li key={i} className="text-[10px] text-gray-300 flex items-start gap-1.5">
-                    <span className="text-yellow-500 mt-0.5 shrink-0">•</span>{b}
+                  <li key={i} className="flex items-start gap-2 text-[10px] text-gray-400 font-mono">
+                    <span style={{ color: '#facc15', marginTop: 2 }}>▸</span>{b}
                   </li>
                 ))}
               </ul>
@@ -249,106 +315,113 @@ const SandyUpdates = () => {
         </div>
       </Section>
 
-      {/* 4. Challenge Detail */}
-      <Section icon={<Trophy size={13} />} label="Challenge Status" color="text-yellow-400">
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
+      {/* Challenge Status */}
+      <Section icon={<Trophy size={12} />} label="Challenge Status" accent="#fbbf24">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
             {Object.entries(ch.progress).map(([key, val]) => (
-              <div key={key} className="px-2 py-1.5 bg-white/[0.04] rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-gray-400 capitalize">{key.replace(/_/g, ' ')}</span>
-                  <span className="font-bold text-white">{val}%</span>
+              <div key={key} className="p-2.5 rounded-xl" style={{
+                background: 'rgba(251,191,36,0.04)',
+                border: '1px solid rgba(251,191,36,0.1)',
+              }}>
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-[9px] font-mono text-gray-600 capitalize">{key.replace(/_/g, ' ')}</span>
+                  <span className="text-[9px] font-mono font-bold" style={{ color: '#fbbf24' }}>{val}%</span>
                 </div>
-                <div className="w-full h-0.5 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${val}%` }} />
+                <div className="w-full h-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.1)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${val}%`, background: 'linear-gradient(90deg, #b45309, #fbbf24)' }} />
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-2">
-            <div className="text-[9px] text-gray-500 mb-1 uppercase tracking-wide">Next Milestones</div>
+          <div>
+            <div className="text-[8px] font-mono tracking-[0.3em] text-gray-700 uppercase mb-2">Next Milestones</div>
             {ch.next_milestones.map((m, i) => (
-              <div key={i} className="flex items-center gap-2 py-0.5 text-[10px]">
-                <span className={m.done ? 'text-green-400' : 'text-gray-600'}>
-                  {m.done ? '✓' : '○'}
-                </span>
-                <span className={m.done ? 'text-gray-400 line-through' : 'text-gray-300'}>{m.task}</span>
+              <div key={i} className="flex items-center gap-2 py-0.5 text-[10px] font-mono">
+                <span style={{ color: m.done ? '#34d399' : '#374151' }}>{m.done ? '✓' : '○'}</span>
+                <span className={m.done ? 'text-gray-600 line-through' : 'text-gray-500'}>{m.task}</span>
               </div>
             ))}
           </div>
         </div>
       </Section>
 
-      {/* 5. Strategies */}
-      <Section icon={<TrendingUp size={13} />} label="Strategies in Research" color="text-green-400">
-        <div className="space-y-2">
-          {strategies.map((s) => (
-            <div key={s.name} className="px-3 py-2 bg-white/[0.04] rounded-lg">
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-xs font-semibold text-gray-200">{s.name}</span>
-                <span className={`text-[9px] font-bold capitalize ${riskColor(s.risk_level)}`}>{s.risk_level}</span>
+      {/* Strategies */}
+      <Section icon={<TrendingUp size={12} />} label="Strategies in Research" accent="#4ade80">
+        <div className="space-y-3">
+          {strategies.map(s => (
+            <div key={s.name} className="p-3 rounded-xl" style={{
+              background: 'rgba(74,222,128,0.03)',
+              border: '1px solid rgba(74,222,128,0.08)',
+            }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-mono font-semibold text-gray-300">{s.name}</span>
+                <span className="text-[8px] font-mono font-bold" style={{ color: riskGlow(s.risk_level) }}>
+                  {s.risk_level.toUpperCase()}
+                </span>
               </div>
-              <p className="text-[10px] text-gray-500 mb-1">{s.description}</p>
-              <div className="flex items-center gap-3 text-[9px]">
-                <span className="text-green-400">↑ {s.expected_return}</span>
-                <span className="text-gray-600">Capital: {s.capital_required}</span>
+              <p className="text-[9px] font-mono text-gray-700 mb-2">{s.description}</p>
+              <div className="flex items-center gap-3 text-[9px] font-mono">
+                <span style={{ color: '#4ade80' }}>↑ {s.expected_return}</span>
+                <span className="text-gray-700">cap: {s.capital_required}</span>
               </div>
             </div>
           ))}
         </div>
       </Section>
 
-      {/* 6. Network */}
-      <Section icon={<Network size={13} />} label="Agent Network" color="text-purple-400">
-        <div className="space-y-1 mb-3">
-          {network.following.sort((a, b) => b.karma - a.karma).map((agent) => (
-            <div key={agent.username} className="flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-white/5 text-[10px]">
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-300 font-medium">@{agent.username}</span>
-                <span className="text-gray-600">·</span>
-                <span className="text-gray-500">{agent.specialty}</span>
+      {/* Agent Network */}
+      <Section icon={<Network size={12} />} label="Agent Network" accent="#a78bfa">
+        <div className="space-y-0.5 mb-3">
+          {network.following.sort((a, b) => b.karma - a.karma).map(agent => (
+            <div key={agent.username} className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-purple-500/5 transition-colors">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-mono text-gray-400 shrink-0">@{agent.username}</span>
+                <span className="text-[9px] font-mono text-gray-700 truncate">{agent.specialty}</span>
               </div>
-              <span className="text-indigo-300 font-bold shrink-0 ml-2">{agent.karma} ★</span>
+              <span className="text-[9px] font-mono font-bold shrink-0 ml-2" style={{ color: '#a78bfa' }}>{agent.karma}★</span>
             </div>
           ))}
         </div>
         {network.recent_connections.length > 0 && (
           <>
-            <div className="text-[9px] text-gray-500 uppercase tracking-wide mb-1">Recent</div>
+            <div className="text-[8px] font-mono tracking-[0.3em] text-gray-700 uppercase mb-1.5">Recent</div>
             {network.recent_connections.map((c, i) => (
-              <div key={i} className="text-[10px] text-gray-400 py-0.5">
-                <span className="text-gray-600">{fmtDay(c.date)}</span> · Connected with <span className="text-gray-200">@{c.agent}</span> — {c.context}
+              <div key={i} className="text-[9px] font-mono text-gray-600 py-0.5">
+                <span className="text-gray-800">{fmtDay(c.date)}</span>
+                {' · '}<span className="text-gray-400">@{c.agent}</span>
+                {' — '}{c.context}
               </div>
             ))}
           </>
         )}
       </Section>
 
-      {/* 7. Daily Log */}
-      <Section icon={<CalendarDays size={13} />} label="Daily Activity Log" color="text-blue-400">
-        <div className="space-y-3">
-          {daily_log.map((day) => (
+      {/* Daily Log */}
+      <Section icon={<CalendarDays size={12} />} label="Daily Log" accent="#60a5fa">
+        <div className="space-y-4">
+          {daily_log.map(day => (
             <div key={day.date}>
-              <div className="text-[9px] text-gray-500 mb-1.5 uppercase tracking-wide">{fmtDay(day.date)}</div>
+              <div className="text-[8px] font-mono tracking-widest text-gray-700 mb-2">{fmtDay(day.date)}</div>
               {(['morning', 'afternoon', 'evening'] as const).map(period => {
                 const entries = day.entries[period];
                 if (!entries?.length) return null;
                 return (
                   <div key={period} className="mb-2">
-                    <div className="text-[9px] text-gray-600 capitalize mb-0.5">{period}</div>
+                    <div className="text-[8px] font-mono text-blue-900/80 uppercase tracking-widest mb-1">{period}</div>
                     {entries.map((e, i) => (
-                      <div key={i} className="text-[10px] text-gray-300 flex items-start gap-1.5 py-0.5">
-                        <span className="text-gray-600 mt-0.5 shrink-0">·</span>{e}
+                      <div key={i} className="text-[10px] font-mono text-gray-500 flex items-start gap-1.5 py-0.5">
+                        <span className="text-blue-900 mt-0.5 shrink-0">·</span>{e}
                       </div>
                     ))}
                   </div>
                 );
               })}
               {day.token_usage && (
-                <div className="mt-1 flex items-center gap-2 text-[9px] text-gray-600">
-                  <MessageCircle size={9} />
-                  Tokens: {(day.token_usage.used / 1000).toFixed(0)}k / {(day.token_usage.total / 1000).toFixed(0)}k
-                  ({Math.round(day.token_usage.used / day.token_usage.total * 100)}%)
+                <div className="flex items-center gap-2 mt-1 text-[8px] font-mono text-gray-700">
+                  <MessageCircle size={8} />
+                  {(day.token_usage.used / 1000).toFixed(0)}k / {(day.token_usage.total / 1000).toFixed(0)}k tokens
+                  · {Math.round(day.token_usage.used / day.token_usage.total * 100)}%
                 </div>
               )}
             </div>
@@ -356,11 +429,14 @@ const SandyUpdates = () => {
         </div>
       </Section>
 
-      {/* Footer link */}
-      <div className="px-4 py-3 border-t border-white/5 flex justify-center">
+      {/* Footer */}
+      <div className="relative px-5 py-4 border-t border-teal-500/8 flex justify-center">
         <a href={mb.profile_url} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-briefing-purple hover:text-indigo-300 transition-colors">
-          View Sandy on Moltbook <ExternalLink size={12} />
+          className="inline-flex items-center gap-2 text-[9px] font-mono tracking-widest uppercase transition-colors"
+          style={{ color: 'rgba(45,212,191,0.5)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(45,212,191,0.9)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(45,212,191,0.5)')}>
+          View Sandy on Moltbook <ExternalLink size={9} />
         </a>
       </div>
     </div>
