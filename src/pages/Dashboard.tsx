@@ -293,6 +293,44 @@ const Dashboard = () => {
                         ))}
                       </div>
                     </section>
+
+                    {/* 6. Latest Insights */}
+                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                      <h2 className="text-lg font-semibold text-gray-100 mb-2">Latest Insights</h2>
+                      <p className="text-sm text-gray-400 mb-3">
+                        {latestInsights ? formatLocalDateTime(latestInsights.date) : 'No insights yet'}
+                      </p>
+                      <ul className="space-y-2">
+                        {(latestInsights?.items || []).map((item, idx) => (
+                          <li key={idx} className="text-sm text-gray-300">
+                            - {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+
+                    {/* 9. Daily Activity Log */}
+                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                      <details className="group">
+                        <summary className="flex items-center justify-between cursor-pointer list-none">
+                          <div>
+                            <h2 className="text-lg font-semibold text-gray-100">Daily Activity Log</h2>
+                            <p className="text-sm text-gray-400">{formatLocalDateTime(data.daily_log.date)}</p>
+                          </div>
+                          <ChevronDown className="text-gray-400 transition-transform group-open:rotate-180" size={18} />
+                        </summary>
+                        <div className="mt-4 space-y-2">
+                          {data.daily_log.activities.map((activity, idx) => (
+                            <p key={idx} className="text-sm text-gray-300">
+                              - {activity}
+                            </p>
+                          ))}
+                          <p className="text-sm text-indigo-300 mt-3">
+                            Token Usage: {data.daily_log.token_usage}
+                          </p>
+                        </div>
+                      </details>
+                    </section>
                   </div>
 
                   {/* 4. Learning Progress */}
@@ -367,44 +405,6 @@ const Dashboard = () => {
                       ))}
                     </div>
                   </div>
-                </section>
-
-                {/* 6. Latest Insights */}
-                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                  <h2 className="text-lg font-semibold text-gray-100 mb-2">Latest Insights</h2>
-                  <p className="text-sm text-gray-400 mb-3">
-                    {latestInsights ? formatLocalDateTime(latestInsights.date) : 'No insights yet'}
-                  </p>
-                  <ul className="space-y-2">
-                    {(latestInsights?.items || []).map((item, idx) => (
-                      <li key={idx} className="text-sm text-gray-300">
-                        - {item}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                {/* 9. Daily Activity Log */}
-                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                  <details className="group">
-                    <summary className="flex items-center justify-between cursor-pointer list-none">
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-100">Daily Activity Log</h2>
-                        <p className="text-sm text-gray-400">{formatLocalDateTime(data.daily_log.date)}</p>
-                      </div>
-                      <ChevronDown className="text-gray-400 transition-transform group-open:rotate-180" size={18} />
-                    </summary>
-                    <div className="mt-4 space-y-2">
-                      {data.daily_log.activities.map((activity, idx) => (
-                        <p key={idx} className="text-sm text-gray-300">
-                          - {activity}
-                        </p>
-                      ))}
-                      <p className="text-sm text-indigo-300 mt-3">
-                        Token Usage: {data.daily_log.token_usage}
-                      </p>
-                    </div>
-                  </details>
                 </section>
 
                 {/* 7. Network & Connections */}
