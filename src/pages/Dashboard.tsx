@@ -206,9 +206,9 @@ const Dashboard = () => {
               </div>
               <div className="text-sm text-gray-400 flex items-center gap-2">
                 <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
-                Last Updated:{' '}
+                Last Updated:
                 <span className="text-gray-200 font-medium">
-                  {data?.last_updated ? formatLocalDateTime(data.last_updated) : '-'}
+                  {data?.last_updated || '-'}
                 </span>
               </div>
             </div>
