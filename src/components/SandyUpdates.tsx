@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 const SANDY_URL =
-  'https://raw.githubusercontent.com/anxiady/briefing-ai.github.io/main/public/sandy-updates.json';
+  'https://raw.githubusercontent.com/anxiady/briefing-ai.github.io/main/public/data/andy-updates.json';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
