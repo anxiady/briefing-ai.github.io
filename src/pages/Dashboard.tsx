@@ -224,106 +224,110 @@ const Dashboard = () => {
 
           {!loading && !error && data && (
             <>
-              {/* 2. Moltbook Activity Stats */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-100">Moltbook Activity Stats</h2>
-                  <a
-                    href={data.moltbook.profile_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-indigo-300 hover:text-indigo-200"
-                  >
-                    Profile <ExternalLink size={14} />
-                  </a>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  {[
-                    ['Karma', data.moltbook.karma],
-                    ['Followers', data.moltbook.followers],
-                    ['Following', data.moltbook.following],
-                    ['Posts', data.moltbook.posts],
-                    ['Comments', data.moltbook.comments],
-                  ].map(([label, value]) => (
-                    <div key={label} className="bg-black/20 border border-white/10 rounded-xl p-3">
-                      <p className="text-xs text-gray-400">{label}</p>
-                      <p className="text-xl font-bold text-gray-100 mt-1">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* 3. Recent Moltbook Activity */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <h2 className="text-lg font-semibold text-gray-100 mb-4">Recent Moltbook Activity</h2>
-                <div className="space-y-3">
-                  {data.moltbook.recent_activity.slice(0, 10).map((item, idx) => (
-                    <a
-                      key={`${item.url}-${idx}`}
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block bg-black/20 border border-white/10 rounded-xl p-4 hover:border-indigo-400/40 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full border ${
-                            item.type === 'post'
-                              ? 'bg-blue-500/20 text-blue-300 border-blue-400/20'
-                              : 'bg-purple-500/20 text-purple-300 border-purple-400/20'
-                          }`}
+              <div className="space-y-6">
+                <div className="grid lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-7 space-y-6">
+                    {/* 2. Moltbook Activity Stats */}
+                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold text-gray-100">Moltbook Activity Stats</h2>
+                        <a
+                          href={data.moltbook.profile_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm text-indigo-300 hover:text-indigo-200"
                         >
-                          {item.type === 'post' ? 'Post' : 'Comment'}
-                        </span>
-                        <span className="text-xs text-gray-500">{toRelativeTime(item.timestamp)}</span>
+                          Profile <ExternalLink size={14} />
+                        </a>
                       </div>
-                      <p className="text-sm text-gray-100 font-medium">
-                        {item.title || item.preview || 'Activity update'}
-                      </p>
-                      {item.post_title && <p className="text-xs text-gray-400 mt-1">On: {item.post_title}</p>}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-2">
-                        {item.submolt && <span>Submolt: {item.submolt}</span>}
-                        {typeof item.upvotes === 'number' && <span>Upvotes: {item.upvotes}</span>}
-                        <span>{formatLocalDateTime(item.timestamp)}</span>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {[
+                          ['Karma', data.moltbook.karma],
+                          ['Followers', data.moltbook.followers],
+                          ['Following', data.moltbook.following],
+                          ['Posts', data.moltbook.posts],
+                          ['Comments', data.moltbook.comments],
+                        ].map(([label, value]) => (
+                          <div key={label} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                            <p className="text-xs text-gray-400">{label}</p>
+                            <p className="text-xl font-bold text-gray-100 mt-1">{value}</p>
+                          </div>
+                        ))}
                       </div>
-                    </a>
-                  ))}
-                </div>
-              </section>
+                    </section>
 
-              {/* 4. Learning Progress */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <h2 className="text-lg font-semibold text-gray-100 mb-4">Learning Progress</h2>
-                <div className="grid lg:grid-cols-2 gap-4">
-                  {Object.entries(data.learning_progress).map(([category, itemMap]) => {
-                    const progress = sectionProgress(itemMap);
-                    return (
-                      <div key={category} className="bg-black/20 border border-white/10 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-sm font-semibold text-gray-100">{toLabel(category)}</h3>
-                          <span className="text-xs text-gray-400">{progress}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-3">
-                          <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 transition-all duration-500" style={{ width: `${progress}%` }} />
-                        </div>
-                        <div className="space-y-2">
-                          {Object.entries(itemMap).map(([name, status]) => (
-                            <div key={name} className="flex items-center justify-between gap-2">
-                              <span className="text-sm text-gray-300">{toLabel(name)}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
+                    {/* 3. Recent Moltbook Activity */}
+                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                      <h2 className="text-lg font-semibold text-gray-100 mb-4">Recent Moltbook Activity</h2>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {data.moltbook.recent_activity.slice(0, 10).map((item, idx) => (
+                          <a
+                            key={`${item.url}-${idx}`}
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block bg-black/20 border border-white/10 rounded-xl p-4 hover:border-indigo-400/40 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full border ${
+                                  item.type === 'post'
+                                    ? 'bg-blue-500/20 text-blue-300 border-blue-400/20'
+                                    : 'bg-purple-500/20 text-purple-300 border-purple-400/20'
+                                }`}
+                              >
+                                {item.type === 'post' ? 'Post' : 'Comment'}
+                              </span>
+                              <span className="text-xs text-gray-500">{toRelativeTime(item.timestamp)}</span>
                             </div>
-                          ))}
-                        </div>
+                            <p className="text-sm text-gray-100 font-medium">
+                              {item.title || item.preview || 'Activity update'}
+                            </p>
+                            {item.post_title && <p className="text-xs text-gray-400 mt-1">On: {item.post_title}</p>}
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-2">
+                              {item.submolt && <span>Submolt: {item.submolt}</span>}
+                              {typeof item.upvotes === 'number' && <span>Upvotes: {item.upvotes}</span>}
+                              <span>{formatLocalDateTime(item.timestamp)}</span>
+                            </div>
+                          </a>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
+                    </section>
+                  </div>
 
-              {/* 5. Challenge Status */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <h2 className="text-lg font-semibold text-gray-100 mb-4">$1k -&gt; $1M Challenge Status</h2>
-                <div className="grid lg:grid-cols-2 gap-5">
+                  {/* 4. Learning Progress */}
+                  <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5 lg:col-span-5">
+                    <h2 className="text-lg font-semibold text-gray-100 mb-4">Learning Progress</h2>
+                    <div className="grid gap-4">
+                      {Object.entries(data.learning_progress).map(([category, itemMap]) => {
+                        const progress = sectionProgress(itemMap);
+                        return (
+                          <div key={category} className="bg-black/20 border border-white/10 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="text-sm font-semibold text-gray-100">{toLabel(category)}</h3>
+                              <span className="text-xs text-gray-400">{progress}%</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-3">
+                              <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+                            </div>
+                            <div className="space-y-2">
+                              {Object.entries(itemMap).map(([name, status]) => (
+                                <div key={name} className="flex items-center justify-between gap-2">
+                                  <span className="text-sm text-gray-300">{toLabel(name)}</span>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </div>
+
+                {/* 5. Challenge Status */}
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-4">$1k -&gt; $1M Challenge Status</h2>
                   <div className="bg-black/20 border border-white/10 rounded-xl p-4">
                     <p className="text-sm text-gray-400">Current Phase</p>
                     <p className="text-base text-gray-100 font-semibold mb-3">{data.challenge_status.phase}</p>
@@ -332,8 +336,7 @@ const Dashboard = () => {
                     <p className="text-sm text-gray-400">Timeline</p>
                     <p className="text-base text-gray-100 font-semibold">{data.challenge_status.timeline}</p>
                   </div>
-
-                  <div className="bg-black/20 border border-white/10 rounded-xl p-4">
+                  <div className="mt-4 bg-black/20 border border-white/10 rounded-xl p-4">
                     <p className="text-sm text-gray-100 font-semibold mb-3">Progress</p>
                     <div className="space-y-3">
                       {Object.entries(data.challenge_status.progress).map(([key, value]) => (
@@ -349,103 +352,103 @@ const Dashboard = () => {
                       ))}
                     </div>
                   </div>
-                </div>
-                <div className="mt-4 bg-black/20 border border-white/10 rounded-xl p-4">
-                  <p className="text-sm text-gray-100 font-semibold mb-2">Milestones</p>
-                  <div className="space-y-2">
-                    {data.challenge_status.milestones.map((milestone, idx) => (
-                      <div key={`${milestone.task}-${idx}`} className="flex items-center gap-2 text-sm">
-                        {milestone.done ? (
-                          <CheckCircle2 size={16} className="text-green-400 shrink-0" />
-                        ) : (
-                          <Circle size={16} className="text-gray-500 shrink-0" />
-                        )}
-                        <span className={milestone.done ? 'text-gray-200' : 'text-gray-400'}>{milestone.task}</span>
-                      </div>
-                    ))}
+                  <div className="mt-4 bg-black/20 border border-white/10 rounded-xl p-4">
+                    <p className="text-sm text-gray-100 font-semibold mb-2">Milestones</p>
+                    <div className="space-y-2">
+                      {data.challenge_status.milestones.map((milestone, idx) => (
+                        <div key={`${milestone.task}-${idx}`} className="flex items-center gap-2 text-sm">
+                          {milestone.done ? (
+                            <CheckCircle2 size={16} className="text-green-400 shrink-0" />
+                          ) : (
+                            <Circle size={16} className="text-gray-500 shrink-0" />
+                          )}
+                          <span className={milestone.done ? 'text-gray-200' : 'text-gray-400'}>{milestone.task}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </section>
+                </section>
 
-              {/* 6. Latest Insights */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <h2 className="text-lg font-semibold text-gray-100 mb-2">Latest Insights</h2>
-                <p className="text-sm text-gray-400 mb-3">
-                  {latestInsights ? formatLocalDateTime(latestInsights.date) : 'No insights yet'}
-                </p>
-                <ul className="space-y-2">
-                  {(latestInsights?.items || []).map((item, idx) => (
-                    <li key={idx} className="text-sm text-gray-300">
-                      - {item}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+                {/* 6. Latest Insights */}
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-2">Latest Insights</h2>
+                  <p className="text-sm text-gray-400 mb-3">
+                    {latestInsights ? formatLocalDateTime(latestInsights.date) : 'No insights yet'}
+                  </p>
+                  <ul className="space-y-2">
+                    {(latestInsights?.items || []).map((item, idx) => (
+                      <li key={idx} className="text-sm text-gray-300">
+                        - {item}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
 
-              {/* 7. Network & Connections */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <h2 className="text-lg font-semibold text-gray-100 mb-4">Network &amp; Connections</h2>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {data.network.map((contact) => (
-                    <a
-                      key={contact.name}
-                      href={`https://www.moltbook.com/u/${contact.name}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-black/20 border border-white/10 rounded-xl p-4 hover:border-indigo-400/40 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-100">{contact.name}</span>
-                        <span className="text-xs text-indigo-300">{contact.karma} karma</span>
+                {/* 9. Daily Activity Log */}
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <details className="group">
+                    <summary className="flex items-center justify-between cursor-pointer list-none">
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-100">Daily Activity Log</h2>
+                        <p className="text-sm text-gray-400">{formatLocalDateTime(data.daily_log.date)}</p>
                       </div>
-                      <p className="text-xs text-gray-400">{contact.focus}</p>
-                    </a>
-                  ))}
-                </div>
-              </section>
-
-              {/* 8. Active Trading Strategies */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <h2 className="text-lg font-semibold text-gray-100 mb-4">Active Trading Strategies</h2>
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {data.strategies.map((strategy) => (
-                    <div key={strategy.name} className="bg-black/20 border border-white/10 rounded-xl p-4">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h3 className="text-sm font-semibold text-gray-100">{strategy.name}</h3>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${RISK_STYLES[strategy.risk] || STATUS_STYLES['Not Started']}`}>
-                          {strategy.risk}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2">{strategy.description}</p>
-                      <p className="text-xs text-gray-300">Expected Return: {strategy.expected_return}</p>
-                      <p className="text-xs text-gray-300">Capital: {strategy.capital}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* 9. Daily Activity Log */}
-              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                <details className="group">
-                  <summary className="flex items-center justify-between cursor-pointer list-none">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-100">Daily Activity Log</h2>
-                      <p className="text-sm text-gray-400">{formatLocalDateTime(data.daily_log.date)}</p>
-                    </div>
-                    <ChevronDown className="text-gray-400 transition-transform group-open:rotate-180" size={18} />
-                  </summary>
-                  <div className="mt-4 space-y-2">
-                    {data.daily_log.activities.map((activity, idx) => (
-                      <p key={idx} className="text-sm text-gray-300">
-                        - {activity}
+                      <ChevronDown className="text-gray-400 transition-transform group-open:rotate-180" size={18} />
+                    </summary>
+                    <div className="mt-4 space-y-2">
+                      {data.daily_log.activities.map((activity, idx) => (
+                        <p key={idx} className="text-sm text-gray-300">
+                          - {activity}
+                        </p>
+                      ))}
+                      <p className="text-sm text-indigo-300 mt-3">
+                        Token Usage: {data.daily_log.token_usage}
                       </p>
+                    </div>
+                  </details>
+                </section>
+
+                {/* 7. Network & Connections */}
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-4">Network &amp; Connections</h2>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {data.network.map((contact) => (
+                      <a
+                        key={contact.name}
+                        href={`https://www.moltbook.com/u/${contact.name}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-black/20 border border-white/10 rounded-xl p-4 hover:border-indigo-400/40 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-gray-100">{contact.name}</span>
+                          <span className="text-xs text-indigo-300">{contact.karma} karma</span>
+                        </div>
+                        <p className="text-xs text-gray-400">{contact.focus}</p>
+                      </a>
                     ))}
-                    <p className="text-sm text-indigo-300 mt-3">
-                      Token Usage: {data.daily_log.token_usage}
-                    </p>
                   </div>
-                </details>
-              </section>
+                </section>
+
+                {/* 8. Active Trading Strategies */}
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-4">Active Trading Strategies</h2>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {data.strategies.map((strategy) => (
+                      <div key={strategy.name} className="bg-black/20 border border-white/10 rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-sm font-semibold text-gray-100">{strategy.name}</h3>
+                          <span className={`text-xs px-2 py-0.5 rounded-full border ${RISK_STYLES[strategy.risk] || STATUS_STYLES['Not Started']}`}>
+                            {strategy.risk}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2">{strategy.description}</p>
+                        <p className="text-xs text-gray-300">Expected Return: {strategy.expected_return}</p>
+                        <p className="text-xs text-gray-300">Capital: {strategy.capital}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
             </>
           )}
         </div>
