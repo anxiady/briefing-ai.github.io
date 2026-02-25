@@ -77,6 +77,7 @@ interface AndyUpdatesData {
 
 const DATA_PATH = '/data/andy-updates.json';
 const REFRESH_MS = 60_000;
+type AnyRecord = Record<string, any>;
 
 const STATUS_STYLES: Record<ProgressStatus, string> = {
   Completed: 'bg-green-500/20 text-green-300 border-green-400/20',
@@ -113,6 +114,153 @@ function toLabel(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function normalizeProgressStatus(value: string): ProgressStatus {
+  const normalized = (value || '').toLowerCase().trim();
+  if (normalized === 'completed' || normalized === 'done') return 'Completed';
+  if (normalized === 'in progress' || normalized === 'in_progress') return 'In Progress';
+  return 'Not Started';
+}
+
+function normalizeLearningProgress(raw: any): Record<string, Record<string, ProgressStatus>> {
+  if (!raw) return {};
+
+  // New format: object of categories -> object of topics
+  if (!Array.isArray(raw) && typeof raw === 'object') {
+    const next: Record<string, Record<string, ProgressStatus>> = {};
+    for (const [category, topics] of Object.entries(raw as AnyRecord)) {
+      if (!topics || typeof topics !== 'object') continue;
+      const topicMap: Record<string, ProgressStatus> = {};
+      for (const [topic, status] of Object.entries(topics as AnyRecord)) {
+        topicMap[topic] = normalizeProgressStatus(String(status));
+      }
+      next[category] = topicMap;
+    }
+    return next;
+  }
+
+  // Old format: [{ subject, items:[{topic,status}] }]
+  if (Array.isArray(raw)) {
+    const next: Record<string, Record<string, ProgressStatus>> = {};
+    for (const subjectEntry of raw) {
+      const subject = String(subjectEntry?.subject || 'general').replace(/\s+/g, '_').toLowerCase();
+      const items = Array.isArray(subjectEntry?.items) ? subjectEntry.items : [];
+      const topicMap: Record<string, ProgressStatus> = {};
+      for (const item of items) {
+        const topic = String(item?.topic || 'unknown').replace(/\s+/g, '_').toLowerCase();
+        topicMap[topic] = normalizeProgressStatus(String(item?.status || 'Not Started'));
+      }
+      next[subject] = topicMap;
+    }
+    return next;
+  }
+
+  return {};
+}
+
+function normalizeDailyLog(raw: any): AndyUpdatesData['daily_log'] {
+  const toUsageString = (value: any): string => {
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object' && typeof value.used === 'number' && typeof value.total === 'number') {
+      const pct = value.total > 0 ? Math.round((value.used / value.total) * 100) : 0;
+      return `${value.used} / ${value.total} (${pct}%)`;
+    }
+    return '-';
+  };
+
+  if (Array.isArray(raw)) {
+    const first = raw[0] || {};
+    const entries = first?.entries || {};
+    const activities = [
+      ...(Array.isArray(entries.morning) ? entries.morning : []),
+      ...(Array.isArray(entries.afternoon) ? entries.afternoon : []),
+      ...(Array.isArray(entries.evening) ? entries.evening : []),
+    ];
+    return {
+      date: String(first?.date || new Date().toISOString().slice(0, 10)),
+      activities,
+      token_usage: toUsageString(first?.token_usage),
+    };
+  }
+
+  return {
+    date: String(raw?.date || new Date().toISOString().slice(0, 10)),
+    activities: Array.isArray(raw?.activities) ? raw.activities.map(String) : [],
+    token_usage: toUsageString(raw?.token_usage),
+  };
+}
+
+function normalizeData(raw: any): AndyUpdatesData {
+  const moltbook = raw?.moltbook || {};
+  const challenge = raw?.challenge_status || {};
+
+  const insightsRaw = Array.isArray(raw?.insights) ? raw.insights : [];
+  const insights = insightsRaw.map((item: any) => ({
+    date: String(item?.date || ''),
+    items: Array.isArray(item?.items)
+      ? item.items.map(String)
+      : Array.isArray(item?.bullets)
+        ? item.bullets.map(String)
+        : [],
+  }));
+
+  const networkRaw = Array.isArray(raw?.network) ? raw.network : [];
+  const network = networkRaw.map((item: any) => ({
+    name: String(item?.name || item?.username || 'unknown'),
+    karma: Number(item?.karma || 0),
+    focus: String(item?.focus || item?.specialty || '-'),
+  }));
+
+  const strategiesRaw = Array.isArray(raw?.strategies) ? raw.strategies : [];
+  const strategies = strategiesRaw.map((item: any) => ({
+    name: String(item?.name || 'Untitled'),
+    description: String(item?.description || ''),
+    expected_return: String(item?.expected_return || '-'),
+    risk: String(item?.risk || item?.risk_level || 'Medium'),
+    capital: String(item?.capital || item?.capital_required || '-'),
+  }));
+
+  const recentRaw = Array.isArray(moltbook?.recent_activity) ? moltbook.recent_activity : [];
+  const recent_activity = recentRaw.map((item: any) => ({
+    timestamp: String(item?.timestamp || ''),
+    type: String(item?.type || 'post'),
+    title: item?.title ? String(item.title) : undefined,
+    preview: item?.preview ? String(item.preview) : undefined,
+    submolt: item?.submolt ? String(item.submolt) : item?.community ? String(item.community) : undefined,
+    url: String(item?.url || '#'),
+    upvotes: typeof item?.upvotes === 'number' ? item.upvotes : undefined,
+    post_title: item?.post_title ? String(item.post_title) : undefined,
+  }));
+
+  return {
+    last_updated: String(raw?.last_updated || ''),
+    moltbook: {
+      karma: Number(moltbook?.karma || 0),
+      followers: Number(moltbook?.followers || 0),
+      following: Number(moltbook?.following || 0),
+      posts: Number(moltbook?.posts ?? moltbook?.total_posts ?? 0),
+      comments: Number(moltbook?.comments ?? moltbook?.total_comments ?? 0),
+      profile_url: String(moltbook?.profile_url || '#'),
+      recent_activity,
+    },
+    learning_progress: normalizeLearningProgress(raw?.learning_progress),
+    insights,
+    challenge_status: {
+      phase: String(challenge?.phase || challenge?.current_phase || '-'),
+      target: String(challenge?.target || challenge?.target_label || '-'),
+      timeline: String(challenge?.timeline || '-'),
+      progress: (challenge?.progress && typeof challenge.progress === 'object') ? challenge.progress : {},
+      milestones: Array.isArray(challenge?.milestones)
+        ? challenge.milestones
+        : Array.isArray(challenge?.next_milestones)
+          ? challenge.next_milestones
+          : [],
+    },
+    network,
+    strategies,
+    daily_log: normalizeDailyLog(raw?.daily_log),
+  };
+}
+
 const Dashboard = () => {
   const [data, setData] = useState<AndyUpdatesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,8 +277,8 @@ const Dashboard = () => {
       if (!response.ok) {
         throw new Error(`Request failed (${response.status})`);
       }
-      const json = (await response.json()) as AndyUpdatesData;
-      setData(json);
+      const json = await response.json();
+      setData(normalizeData(json));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
