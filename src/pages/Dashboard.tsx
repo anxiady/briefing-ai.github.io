@@ -169,36 +169,44 @@ function normalizeDailyLog(raw: any): AndyUpdatesData['daily_log'] {
     return '-';
   };
 
-  if (Array.isArray(raw)) {
-    const sorted = [...raw].sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
-    const first = sorted[0] || {};
-    const entries = first?.entries || {};
-    const activities = [
+  const extractActivities = (value: any): string[] => {
+    if (Array.isArray(value?.activities)) {
+      return value.activities
+        .map((entry: any) => {
+          if (typeof entry === 'string') return entry;
+          if (entry && typeof entry === 'object') {
+            return String(entry.text || entry.item || entry.activity || entry.description || '');
+          }
+          return '';
+        })
+        .filter(Boolean);
+    }
+
+    const entries = value?.entries || {};
+    const flattened = [
       ...(Array.isArray(entries.morning) ? entries.morning : []),
       ...(Array.isArray(entries.afternoon) ? entries.afternoon : []),
       ...(Array.isArray(entries.evening) ? entries.evening : []),
     ];
-    return {
-      date: String(first?.date || new Date().toISOString().slice(0, 10)),
-      activities,
-      token_usage: toUsageString(first?.token_usage),
-    };
+    return flattened.map(String);
+  };
+
+  const fromObject = (value: any): AndyUpdatesData['daily_log'] => ({
+    date: String(value?.date || value?.day || new Date().toISOString().slice(0, 10)),
+    activities: extractActivities(value),
+    token_usage: toUsageString(value?.token_usage ?? value?.tokenUsage),
+  });
+
+  if (Array.isArray(raw)) {
+    const sorted = [...raw].sort((a, b) => {
+      const aKey = String(a?.date || a?.day || a?.timestamp || '');
+      const bKey = String(b?.date || b?.day || b?.timestamp || '');
+      return bKey.localeCompare(aKey);
+    });
+    return fromObject(sorted[0] || {});
   }
 
-  const objectEntries = raw?.entries || {};
-  const activitiesFromEntries = [
-    ...(Array.isArray(objectEntries.morning) ? objectEntries.morning : []),
-    ...(Array.isArray(objectEntries.afternoon) ? objectEntries.afternoon : []),
-    ...(Array.isArray(objectEntries.evening) ? objectEntries.evening : []),
-  ];
-
-  return {
-    date: String(raw?.date || new Date().toISOString().slice(0, 10)),
-    activities: Array.isArray(raw?.activities)
-      ? raw.activities.map(String)
-      : activitiesFromEntries.map(String),
-    token_usage: toUsageString(raw?.token_usage),
-  };
+  return fromObject(raw);
 }
 
 function normalizeData(raw: any): AndyUpdatesData {
@@ -269,7 +277,7 @@ function normalizeData(raw: any): AndyUpdatesData {
     },
     network,
     strategies,
-    daily_log: normalizeDailyLog(raw?.daily_log),
+    daily_log: normalizeDailyLog(raw?.daily_log ?? raw?.daily_activity_log ?? raw?.dailyLog),
   };
 }
 
