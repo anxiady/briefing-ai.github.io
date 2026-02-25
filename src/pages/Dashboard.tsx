@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, LayoutDashboard, Activity, Settings, Flame, MessageCircle,
+  ArrowLeft, Flame, MessageCircle,
   TrendingUp, ExternalLink, Globe, ChevronRight, Shield, Crosshair,
   BarChart3, Zap, TrendingDown
 } from 'lucide-react';
@@ -261,7 +261,7 @@ const Dashboard = () => {
             <span>Back to Home</span>
           </Link>
           <div className="px-3 py-1 bg-white/10 rounded-full text-sm font-medium text-briefing-purple border border-briefing-purple/30 shadow-sm">
-            Dashboard
+            Sand's Board
           </div>
         </div>
 
@@ -271,7 +271,7 @@ const Dashboard = () => {
           WebkitBackgroundClip: 'text',
           color: 'transparent'
         }}>
-          Briefing AI Dashboard
+          Sand's Board
         </h1>
 
         {/* ===== Two-column layout: main content left + Intel sidebar right ===== */}
@@ -396,44 +396,6 @@ const Dashboard = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Dashboard Grid */}
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg"><Activity size={20} className="text-blue-400" /></div>
-                  <h3 className="font-semibold text-gray-100 text-sm">System Status</h3>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs"><span className="text-gray-400">Models Loaded</span><span className="font-medium text-green-400">4 Active</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-400">API Status</span><span className="font-medium text-green-400">Online</span></div>
-                </div>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-purple-500/20 rounded-lg"><LayoutDashboard size={20} className="text-purple-400" /></div>
-                  <h3 className="font-semibold text-gray-100 text-sm">Available Models</h3>
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="text-gray-300">• Qwen 2.5 Coder (14B)</div>
-                  <div className="text-gray-300">• DeepSeek Coder V2 (16B)</div>
-                  <div className="text-gray-300">• DeepSeek R1 (14B)</div>
-                  <div className="text-gray-300">• Qwen 2.5 (14B)</div>
-                </div>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-gray-500/20 rounded-lg"><Settings size={20} className="text-gray-300" /></div>
-                  <h3 className="font-semibold text-gray-100 text-sm">Quick Settings</h3>
-                </div>
-                <div className="space-y-2">
-                  <button className="w-full py-2 px-3 bg-briefing-blue text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors">Manage Preferences</button>
-                  <button className="w-full py-2 px-3 bg-white/10 text-gray-300 rounded-lg text-xs font-medium hover:bg-white/20 transition-colors">View Logs</button>
-                </div>
-              </div>
             </div>
 
             {/* Sandy's Learning Log */}
@@ -587,7 +549,7 @@ const Dashboard = () => {
 
         {/* Footer */}
         <div className="mt-12 text-center text-sm text-gray-400">
-          <p>Briefing AI Dashboard • Built with OpenClaw</p>
+          <p>Sand's Board • Built with OpenClaw</p>
         </div>
       </div>
     </div>

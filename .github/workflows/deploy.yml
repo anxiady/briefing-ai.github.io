@@ -24,7 +24,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Update Moltbook Topics
-        run: python3 scripts/update_moltbook.py
+        continue-on-error: true
+        run: python3 scripts/update_moltbook.py || echo "Moltbook update skipped; continuing deploy."
         env:
           MOLTBOOK_API_KEY: ${{ secrets.MOLTBOOK_API_KEY }}
       - name: Commit Updated Topics
