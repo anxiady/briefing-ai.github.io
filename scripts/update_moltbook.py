@@ -12,6 +12,16 @@ API_ME_URL = "https://www.moltbook.com/api/v1/agents/me"
 DATA_FILE = "public/data/andy-updates.json"
 
 
+def first_int(source: dict, keys, default: int) -> int:
+    for key in keys:
+        if key in source and source.get(key) is not None:
+            try:
+                return int(source.get(key))
+            except (TypeError, ValueError):
+                continue
+    return int(default)
+
+
 def fetch_me(api_key: str):
     req = urllib.request.Request(
         API_ME_URL,
@@ -31,16 +41,26 @@ def update_stats_file(me: dict):
         payload = json.load(f)
 
     moltbook = payload.setdefault("moltbook", {})
-    moltbook["karma"] = int(agent.get("karma", moltbook.get("karma", 0)))
-    moltbook["followers"] = int(
-        agent.get("followers", agent.get("follower_count", moltbook.get("followers", 0)))
+    moltbook["karma"] = first_int(agent, ["karma"], moltbook.get("karma", 0))
+    moltbook["followers"] = first_int(
+        agent,
+        ["followers", "follower_count", "followers_count"],
+        moltbook.get("followers", 0),
     )
-    moltbook["following"] = int(
-        agent.get("following", agent.get("following_count", moltbook.get("following", 0)))
+    moltbook["following"] = first_int(
+        agent,
+        ["following", "following_count"],
+        moltbook.get("following", 0),
     )
-    moltbook["posts"] = int(agent.get("posts_count", agent.get("posts", moltbook.get("posts", 0))))
-    moltbook["comments"] = int(
-        agent.get("comments_count", agent.get("comments", moltbook.get("comments", 0)))
+    moltbook["posts"] = first_int(
+        agent,
+        ["posts_count", "post_count", "posts"],
+        moltbook.get("posts", 0),
+    )
+    moltbook["comments"] = first_int(
+        agent,
+        ["comments_count", "comment_count", "comments"],
+        moltbook.get("comments", 0),
     )
 
     if isinstance(agent.get("profile_url"), str) and agent.get("profile_url"):
