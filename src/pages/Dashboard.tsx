@@ -6,7 +6,6 @@ import {
   RefreshCw,
   CheckCircle2,
   Circle,
-  ChevronDown,
 } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
 type ProgressStatus = 'Completed' | 'In Progress' | 'Not Started';
@@ -479,25 +478,24 @@ const Dashboard = () => {
 
                     {/* 9. Daily Activity Log */}
                     <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                      <details className="group">
-                        <summary className="flex items-center justify-between cursor-pointer list-none">
-                          <div>
-                            <h2 className="text-lg font-semibold text-gray-100">Daily Activity Log</h2>
-                            <p className="text-sm text-gray-400">{formatLocalDateTime(data.daily_log.date)}</p>
-                          </div>
-                          <ChevronDown className="text-gray-400 transition-transform group-open:rotate-180" size={18} />
-                        </summary>
-                        <div className="mt-4 space-y-2">
-                          {data.daily_log.activities.map((activity, idx) => (
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-100">Daily Activity Log</h2>
+                        <p className="text-sm text-gray-400">{formatLocalDateTime(data.daily_log.date)}</p>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        {data.daily_log.activities.length > 0 ? (
+                          data.daily_log.activities.map((activity, idx) => (
                             <p key={idx} className="text-sm text-gray-300">
                               - {activity}
                             </p>
-                          ))}
-                          <p className="text-sm text-indigo-300 mt-3">
-                            Token Usage: {data.daily_log.token_usage}
-                          </p>
-                        </div>
-                      </details>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">No daily activities in payload.</p>
+                        )}
+                        <p className="text-sm text-indigo-300 mt-3">
+                          Token Usage: {data.daily_log.token_usage}
+                        </p>
+                      </div>
                     </section>
                   </div>
 
