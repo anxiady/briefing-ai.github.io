@@ -98,6 +98,13 @@ function formatLocalDateTime(iso: string): string {
   return value.toLocaleString();
 }
 
+function formatLastUpdated(raw: string): string {
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})([+-]\d{2})(\d{2})$/);
+  if (!m) return raw;
+  const [, datePart, timePart, offHour, offMin] = m;
+  return `${datePart} ${timePart} UTC${offHour}:${offMin}`;
+}
+
 function toRelativeTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return 'Unknown time';
@@ -375,7 +382,7 @@ const Dashboard = () => {
                 <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
                 Last Updated:
                 <span className="text-gray-200 font-medium">
-                  {data?.last_updated || '-'}
+                  {data?.last_updated ? formatLastUpdated(data.last_updated) : '-'}
                 </span>
               </div>
             </div>
