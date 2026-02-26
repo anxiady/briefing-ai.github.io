@@ -1,0 +1,32 @@
+name: Sync gh-pages updates into main
+
+on:
+  push:
+    branches: [ gh-pages ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Pull andy-updates from gh-pages
+        run: |
+          git fetch origin gh-pages
+          git show origin/gh-pages:data/andy-updates.json > public/data/andy-updates.json
+
+      - name: Commit synced updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add public/data/andy-updates.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Sync andy-updates from gh-pages [auto]"
+          git push origin main || true

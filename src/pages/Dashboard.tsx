@@ -74,10 +74,7 @@ interface AndyUpdatesData {
   };
 }
 
-const DATA_PATHS = [
-  'https://raw.githubusercontent.com/anxiady/briefing-ai.github.io/gh-pages/data/andy-updates.json',
-  '/data/andy-updates.json',
-];
+const DATA_PATH = '/data/andy-updates.json';
 const REFRESH_MS = 60_000;
 type AnyRecord = Record<string, any>;
 
@@ -302,25 +299,11 @@ const Dashboard = () => {
     setError(null);
 
     try {
-      let json: unknown = null;
-      let lastError = '';
-
-      for (const source of DATA_PATHS) {
-        const separator = source.includes('?') ? '&' : '?';
-        const url = `${source}${separator}t=${Date.now()}`;
-        try {
-          const response = await fetch(url, { cache: 'no-store' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          json = await response.json();
-          break;
-        } catch (e) {
-          lastError = e instanceof Error ? e.message : String(e);
-        }
+      const response = await fetch(`${DATA_PATH}?t=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Request failed (${response.status})`);
       }
-
-      if (!json) {
-        throw new Error(`All data sources failed. Last error: ${lastError}`);
-      }
+      const json = await response.json();
 
       setData(normalizeData(json));
     } catch (err) {
@@ -410,7 +393,7 @@ const Dashboard = () => {
 
           {!loading && error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-red-200">
-              Could not load dashboard data from configured sources. Error: {error}
+              Could not load dashboard data from <code>{DATA_PATH}</code>. Error: {error}
             </div>
           )}
 
