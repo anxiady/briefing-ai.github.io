@@ -3,8 +3,6 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
-  schedule:
-    - cron: '0 */6 * * *'  # Run every 6 hours
   workflow_dispatch:
 
 permissions:
@@ -23,18 +21,6 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Update Moltbook Stats
-        continue-on-error: true
-        run: python3 scripts/update_moltbook.py || echo "Moltbook stats update skipped; continuing deploy."
-        env:
-          MOLTBOOK_API_KEY: ${{ secrets.MOLTBOOK_API_KEY }}
-      - name: Commit Updated Data
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add public/data/andy-updates.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update Moltbook stats [auto]"
-          git push origin main || true
       - name: Validate andy-updates data format
         run: npm run validate:andy-updates
       - name: Build
