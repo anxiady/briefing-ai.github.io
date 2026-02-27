@@ -223,7 +223,15 @@ function normalizeData(raw: any): AndyUpdatesData {
   const insights = insightsRaw.map((item: any) => ({
     date: String(item?.date || ''),
     items: Array.isArray(item?.items)
-      ? item.items.map(String)
+      ? item.items
+        .map((entry: any) => {
+          if (typeof entry === 'string') return entry;
+          if (entry && typeof entry === 'object') {
+            return String(entry.text || entry.item || entry.insight || entry.description || '');
+          }
+          return '';
+        })
+        .filter(Boolean)
       : Array.isArray(item?.bullets)
         ? item.bullets.map(String)
         : [],
@@ -321,9 +329,9 @@ const Dashboard = () => {
     return () => window.clearInterval(timer);
   }, []);
 
-  const latestInsights = useMemo(() => {
-    if (!data?.insights?.length) return null;
-    return [...data.insights].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const sortedInsights = useMemo(() => {
+    if (!data?.insights?.length) return [];
+    return [...data.insights].sort((a, b) => b.date.localeCompare(a.date));
   }, [data]);
 
   const sectionProgress = (items: Record<string, ProgressStatus>) => {
@@ -471,17 +479,25 @@ const Dashboard = () => {
 
                     {/* 6. Latest Insights */}
                     <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                      <h2 className="text-lg font-semibold text-gray-100 mb-2">Latest Insights</h2>
-                      <p className="text-sm text-gray-400 mb-3">
-                        {latestInsights ? formatLocalDateTime(latestInsights.date) : 'No insights yet'}
-                      </p>
-                      <ul className="space-y-2">
-                        {(latestInsights?.items || []).map((item, idx) => (
-                          <li key={idx} className="text-sm text-gray-300">
-                            - {item}
-                          </li>
-                        ))}
-                      </ul>
+                      <h2 className="text-lg font-semibold text-gray-100 mb-3">Insights</h2>
+                      <div className="space-y-4">
+                        {sortedInsights.length > 0 ? (
+                          sortedInsights.map((day, dayIdx) => (
+                            <div key={`${day.date}-${dayIdx}`} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                              <p className="text-sm text-gray-400 mb-2">{formatLocalDateTime(day.date)}</p>
+                              <ul className="space-y-2">
+                                {(day.items || []).map((item, idx) => (
+                                  <li key={idx} className="text-sm text-gray-300">
+                                    - {item}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">No insights yet.</p>
+                        )}
+                      </div>
                     </section>
 
                     {/* 9. Daily Activity Log */}
