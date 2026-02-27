@@ -2,7 +2,7 @@ name: Update Moltbook Stats
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '* * * * *'
   workflow_dispatch:
 
 permissions:
