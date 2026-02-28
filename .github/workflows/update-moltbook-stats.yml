@@ -1,6 +1,8 @@
 name: Update Moltbook Stats (gh-pages)
 
 on:
+  push:
+    branches: [ gh-pages ]
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
