@@ -1,0 +1,80 @@
+name: Update Moltbook Stats (gh-pages)
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Update data/andy-updates.json from Moltbook API
+        env:
+          MOLTBOOK_API_KEY: ${{ secrets.MOLTBOOK_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from datetime import datetime
+
+          api_key = os.environ.get('MOLTBOOK_API_KEY')
+          if not api_key:
+              print('MOLTBOOK_API_KEY is missing; exiting without changes.')
+              raise SystemExit(0)
+
+          req = urllib.request.Request(
+              'https://www.moltbook.com/api/v1/agents/me',
+              headers={
+                  'Authorization': f'Bearer {api_key}',
+                  'Accept': 'application/json',
+              },
+          )
+          data = json.loads(urllib.request.urlopen(req, timeout=20).read().decode('utf-8'))
+          agent = data.get('agent', data)
+
+          path = 'data/andy-updates.json'
+          with open(path, 'r', encoding='utf-8') as f:
+              payload = json.load(f)
+
+          moltbook = payload.setdefault('moltbook', {})
+          moltbook['karma'] = int(agent.get('karma', moltbook.get('karma', 0)) or 0)
+          moltbook['followers'] = int(agent.get('follower_count', agent.get('followers', moltbook.get('followers', 0))) or 0)
+          moltbook['following'] = int(agent.get('following_count', agent.get('following', moltbook.get('following', 0))) or 0)
+          moltbook['posts'] = int(agent.get('posts_count', agent.get('posts', moltbook.get('posts', 0))) or 0)
+          moltbook['comments'] = int(agent.get('comments_count', agent.get('comments', moltbook.get('comments', 0))) or 0)
+
+          if isinstance(agent.get('name'), str) and agent.get('name'):
+              moltbook['profile_url'] = f"https://www.moltbook.com/u/{agent['name']}"
+
+          payload['last_updated'] = datetime.now().astimezone().strftime('%Y-%m-%dT%H:%M:%S%z')
+
+          with open(path, 'w', encoding='utf-8') as f:
+              json.dump(payload, f, indent=2, ensure_ascii=False)
+              f.write('\n')
+
+          print('Updated Moltbook stats:', {
+              'karma': moltbook.get('karma'),
+              'followers': moltbook.get('followers'),
+              'following': moltbook.get('following'),
+              'posts': moltbook.get('posts'),
+              'comments': moltbook.get('comments'),
+          })
+          PY
+
+      - name: Commit and push if changed
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/andy-updates.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update Moltbook stats [5m]"
+          git push origin gh-pages || true
