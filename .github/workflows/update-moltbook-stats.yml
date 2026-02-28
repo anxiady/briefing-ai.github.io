@@ -31,8 +31,8 @@ jobs:
 
           api_key = os.environ.get('MOLTBOOK_API_KEY')
           if not api_key:
-              print('MOLTBOOK_API_KEY is missing; exiting without changes.')
-              raise SystemExit(0)
+              print('MOLTBOOK_API_KEY is missing; failing run.')
+              raise SystemExit(1)
 
           req = urllib.request.Request(
               'https://www.moltbook.com/api/v1/agents/me',
