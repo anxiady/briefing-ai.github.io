@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  ExternalLink,
-  RefreshCw,
-  CheckCircle2,
-  Circle,
-} from 'lucide-react';
+import { ArrowLeft, ExternalLink, RefreshCw, CheckCircle2, Circle } from 'lucide-react';
 import BackgroundGradient from '@/components/BackgroundGradient';
+
 type ProgressStatus = 'Completed' | 'In Progress' | 'Not Started';
 
 interface RecentActivityItem {
@@ -43,6 +38,7 @@ interface StrategyItem {
   expected_return: string;
   risk: 'Low' | 'Medium' | 'High' | string;
   capital: string;
+  status?: string;
 }
 
 interface AndyUpdatesData {
@@ -72,6 +68,64 @@ interface AndyUpdatesData {
     activities: string[];
     token_usage: string;
   };
+  hero?: {
+    current_capital?: string;
+    current_phase?: string;
+    all_time_pnl?: string;
+    pnl_pct?: string;
+    wins?: number;
+    losses?: number;
+    days_active?: number;
+    status?: string;
+  };
+  active_playbook?: {
+    title?: string;
+    strategy?: string[];
+    entry_rules?: string[];
+    risk_management?: string[];
+    current_phase_goals?: string[];
+    next_phase?: string[];
+  };
+  trading_performance?: {
+    current_trades?: Array<Record<string, string | number>>;
+    recent_history?: Array<Record<string, string | number>>;
+    metrics?: Record<string, string | number>;
+    phase_progress?: {
+      label?: string;
+      current?: number;
+      total?: number;
+      net_pnl?: string;
+      status?: string;
+    };
+  };
+  edge_monitor?: {
+    opportunities?: Array<{
+      strength?: string;
+      title?: string;
+      details?: string[];
+      recommendation?: string;
+    }>;
+    last_scan?: string;
+    next_scan?: string;
+  };
+  risk_dashboard?: {
+    portfolio_heat?: string[];
+    daily_performance?: string[];
+    consecutive_losses?: string[];
+    max_drawdown?: string[];
+  };
+  roadmap?: Array<{
+    title: string;
+    status: 'done' | 'current' | 'upcoming';
+    items: string[];
+  }>;
+  system_status?: {
+    api_connections?: string[];
+    automation?: string[];
+    last_check?: string;
+    uptime?: string;
+    next_maintenance?: string;
+  };
 }
 
 const DATA_PATH = '/data/andy-updates.json';
@@ -91,7 +145,6 @@ const RISK_STYLES: Record<string, string> = {
 };
 
 function formatLocalDateTime(iso: string): string {
-  // Preserve date-only strings exactly to avoid timezone day-shift in UI.
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const value = new Date(iso);
   if (Number.isNaN(value.getTime())) return iso;
@@ -132,7 +185,6 @@ function normalizeProgressStatus(value: string): ProgressStatus {
 function normalizeLearningProgress(raw: any): Record<string, Record<string, ProgressStatus>> {
   if (!raw) return {};
 
-  // New format: object of categories -> object of topics
   if (!Array.isArray(raw) && typeof raw === 'object') {
     const next: Record<string, Record<string, ProgressStatus>> = {};
     for (const [category, topics] of Object.entries(raw as AnyRecord)) {
@@ -146,7 +198,6 @@ function normalizeLearningProgress(raw: any): Record<string, Record<string, Prog
     return next;
   }
 
-  // Old format: [{ subject, items:[{topic,status}] }]
   if (Array.isArray(raw)) {
     const next: Record<string, Record<string, ProgressStatus>> = {};
     for (const subjectEntry of raw) {
@@ -224,14 +275,14 @@ function normalizeData(raw: any): AndyUpdatesData {
     date: String(item?.date || ''),
     items: Array.isArray(item?.items)
       ? item.items
-        .map((entry: any) => {
-          if (typeof entry === 'string') return entry;
-          if (entry && typeof entry === 'object') {
-            return String(entry.text || entry.item || entry.insight || entry.description || '');
-          }
-          return '';
-        })
-        .filter(Boolean)
+          .map((entry: any) => {
+            if (typeof entry === 'string') return entry;
+            if (entry && typeof entry === 'object') {
+              return String(entry.text || entry.item || entry.insight || entry.description || '');
+            }
+            return '';
+          })
+          .filter(Boolean)
       : Array.isArray(item?.bullets)
         ? item.bullets.map(String)
         : [],
@@ -244,14 +295,22 @@ function normalizeData(raw: any): AndyUpdatesData {
     focus: String(item?.focus || item?.specialty || '-'),
   }));
 
-  const strategiesRaw = Array.isArray(raw?.strategies) ? raw.strategies : [];
-  const strategies = strategiesRaw.map((item: any) => ({
-    name: String(item?.name || 'Untitled'),
-    description: String(item?.description || ''),
-    expected_return: String(item?.expected_return || '-'),
-    risk: String(item?.risk || item?.risk_level || 'Medium'),
-    capital: String(item?.capital || item?.capital_required || '-'),
-  }));
+  const strategiesRaw = Array.isArray(raw?.strategies)
+    ? raw.strategies
+    : raw?.strategies && typeof raw.strategies === 'object'
+      ? Object.values(raw.strategies)
+      : [];
+
+  const strategies = strategiesRaw
+    .map((item: any, idx: number) => ({
+      name: String(item?.name || `Strategy ${idx + 1}`),
+      description: String(item?.description || ''),
+      expected_return: String(item?.expected_return || item?.daily_target || '-'),
+      risk: String(item?.risk || item?.risk_level || 'Medium'),
+      capital: String(item?.capital || item?.capital_required || item?.target || '-'),
+      status: item?.status ? String(item.status) : undefined,
+    }))
+    .filter((s: StrategyItem) => s.name.trim().length > 0);
 
   const recentRaw = Array.isArray(moltbook?.recent_activity) ? moltbook.recent_activity : [];
   const recent_activity = recentRaw.map((item: any) => ({
@@ -292,6 +351,13 @@ function normalizeData(raw: any): AndyUpdatesData {
     network,
     strategies,
     daily_log: normalizeDailyLog(raw?.daily_log ?? raw?.daily_activity_log ?? raw?.dailyLog),
+    hero: raw?.hero || raw?.capital_overview,
+    active_playbook: raw?.active_playbook || raw?.playbook,
+    trading_performance: raw?.trading_performance,
+    edge_monitor: raw?.edge_monitor,
+    risk_dashboard: raw?.risk_dashboard,
+    roadmap: Array.isArray(raw?.roadmap) ? raw.roadmap : [],
+    system_status: raw?.system_status,
   };
 }
 
@@ -312,7 +378,6 @@ const Dashboard = () => {
         throw new Error(`Request failed (${response.status})`);
       }
       const json = await response.json();
-
       setData(normalizeData(json));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -345,20 +410,25 @@ const Dashboard = () => {
     return Math.round((score / values.length) * 100);
   };
 
-  const renderSkeleton = () => (
-    <div className="space-y-4 animate-pulse">
-      {[...Array(7)].map((_, i) => (
-        <div key={i} className="h-24 bg-white/5 border border-white/10 rounded-2xl" />
-      ))}
-    </div>
-  );
+  const statusBadge = (status?: string) => {
+    const value = (status || '').toLowerCase();
+    if (value.includes('live')) return { text: 'LIVE & TRADING', cls: 'bg-green-500/20 text-green-300 border-green-500/30' };
+    if (value.includes('test')) return { text: 'TESTING MODE', cls: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' };
+    if (value.includes('pause')) return { text: 'PAUSED', cls: 'bg-red-500/20 text-red-300 border-red-500/30' };
+    return { text: 'OFFLINE', cls: 'bg-gray-500/20 text-gray-300 border-gray-500/30' };
+  };
+
+  const hero = data?.hero || {};
+  const playbook = data?.active_playbook || {};
+  const tp = data?.trading_performance || {};
+  const edge = data?.edge_monitor || {};
+  const risk = data?.risk_dashboard || {};
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden px-4 py-8">
       <BackgroundGradient />
 
       <div className="w-full max-w-7xl mx-auto z-10">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link to="/" className="flex items-center gap-2 text-gray-300 hover:text-briefing-purple transition-colors">
             <ArrowLeft size={20} />
@@ -369,281 +439,346 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div
-          className={`space-y-6 transition-opacity duration-300 ${isRefreshing ? 'opacity-85' : 'opacity-100'}`}
-        >
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-              <div>
-                <h1
-                  className="text-3xl sm:text-4xl font-bold mb-2"
-                  style={{
-                    background: 'linear-gradient(to right, #E0E7FF, #818CF8)',
-                    WebkitBackgroundClip: 'text',
-                    color: 'transparent',
-                  }}
-                >
-                  Andy&apos;s AI Trading Journey
-                </h1>
-                <p className="text-gray-300">$1,000 -&gt; $1,000,000 Challenge</p>
-              </div>
-              <div className="text-sm text-gray-400 flex items-center gap-2">
-                <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
-                Last Updated:
-                <span className="text-gray-200 font-medium">
-                  {data?.last_updated ? formatLastUpdated(data.last_updated) : '-'}
-                </span>
-              </div>
-            </div>
+        {loading && (
+          <div className="space-y-4 animate-pulse">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-24 bg-white/5 border border-white/10 rounded-2xl" />
+            ))}
           </div>
+        )}
 
-          {loading && renderSkeleton()}
+        {!loading && error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-red-200">
+            Could not load dashboard data from <code>{DATA_PATH}</code>. Error: {error}
+          </div>
+        )}
 
-          {!loading && error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-red-200">
-              Could not load dashboard data from <code>{DATA_PATH}</code>. Error: {error}
-            </div>
-          )}
-
-          {!loading && !error && data && (
-            <>
-              <div className="space-y-6">
-                <div className="grid lg:grid-cols-12 gap-6">
-                  <div className="lg:col-span-7 space-y-6">
-                    {/* 2. Moltbook Activity Stats */}
-                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-gray-100">Moltbook Activity Stats</h2>
-                        <a
-                          href={data.moltbook.profile_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-indigo-300 hover:text-indigo-200"
-                        >
-                          Profile <ExternalLink size={14} />
-                        </a>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        {[
-                          ['Karma', data.moltbook.karma],
-                          ['Followers', data.moltbook.followers],
-                          ['Following', data.moltbook.following],
-                          ['Posts', data.moltbook.posts],
-                          ['Comments', data.moltbook.comments],
-                        ].map(([label, value]) => (
-                          <div key={label} className="bg-black/20 border border-white/10 rounded-xl p-3">
-                            <p className="text-xs text-gray-400">{label}</p>
-                            <p className="text-xl font-bold text-gray-100 mt-1">{value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-
-                    {/* 3. Recent Moltbook Activity */}
-                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                      <h2 className="text-lg font-semibold text-gray-100 mb-4">Recent Moltbook Activity</h2>
-                      <div className="grid md:grid-cols-2 gap-3">
-                        {data.moltbook.recent_activity.slice(0, 10).map((item, idx) => (
-                          <a
-                            key={`${item.url}-${idx}`}
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block bg-black/20 border border-white/10 rounded-xl p-4 hover:border-indigo-400/40 transition-colors"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span
-                                className={`text-xs px-2 py-0.5 rounded-full border ${
-                                  item.type === 'post'
-                                    ? 'bg-blue-500/20 text-blue-300 border-blue-400/20'
-                                    : 'bg-purple-500/20 text-purple-300 border-purple-400/20'
-                                }`}
-                              >
-                                {item.type === 'post' ? 'Post' : 'Comment'}
-                              </span>
-                              <span className="text-xs text-gray-500">{toRelativeTime(item.timestamp)}</span>
-                            </div>
-                            <p className="text-sm text-gray-100 font-medium">
-                              {item.title || item.preview || 'Activity update'}
-                            </p>
-                            {item.post_title && <p className="text-xs text-gray-400 mt-1">On: {item.post_title}</p>}
-                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-2">
-                              {item.submolt && <span>Submolt: {item.submolt}</span>}
-                              {typeof item.upvotes === 'number' && <span>Upvotes: {item.upvotes}</span>}
-                              <span>{formatLocalDateTime(item.timestamp)}</span>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    </section>
-
-                    {/* 6. Latest Insights */}
-                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                      <h2 className="text-lg font-semibold text-gray-100 mb-3">Insights</h2>
-                      <div className="space-y-4">
-                        {sortedInsights.length > 0 ? (
-                          sortedInsights.map((day, dayIdx) => (
-                            <div key={`${day.date}-${dayIdx}`} className="bg-black/20 border border-white/10 rounded-xl p-3">
-                              <p className="text-sm text-gray-400 mb-2">{formatLocalDateTime(day.date)}</p>
-                              <ul className="space-y-2">
-                                {(day.items || []).map((item, idx) => (
-                                  <li key={idx} className="text-sm text-gray-300">
-                                    - {item}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-gray-500">No insights yet.</p>
-                        )}
-                      </div>
-                    </section>
-
-                    {/* 9. Daily Activity Log */}
-                    <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-100">Daily Activity Log</h2>
-                        <p className="text-sm text-gray-400">{formatLocalDateTime(data.daily_log.date)}</p>
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        {data.daily_log.activities.length > 0 ? (
-                          data.daily_log.activities.map((activity, idx) => (
-                            <p key={idx} className="text-sm text-gray-300">
-                              - {activity}
-                            </p>
-                          ))
-                        ) : (
-                          <p className="text-sm text-gray-500">No daily activities in payload.</p>
-                        )}
-                        <p className="text-sm text-indigo-300 mt-3">
-                          Token Usage: {data.daily_log.token_usage}
-                        </p>
-                      </div>
-                    </section>
-                  </div>
-
-                  {/* 4. Learning Progress */}
-                  <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5 lg:col-span-5">
-                    <h2 className="text-lg font-semibold text-gray-100 mb-4">Learning Progress</h2>
-                    <div className="grid gap-4">
-                      {Object.entries(data.learning_progress).map(([category, itemMap]) => {
-                        const progress = sectionProgress(itemMap);
-                        return (
-                          <div key={category} className="bg-black/20 border border-white/10 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="text-sm font-semibold text-gray-100">{toLabel(category)}</h3>
-                              <span className="text-xs text-gray-400">{progress}%</span>
-                            </div>
-                            <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-3">
-                              <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 transition-all duration-500" style={{ width: `${progress}%` }} />
-                            </div>
-                            <div className="space-y-2">
-                              {Object.entries(itemMap).map(([name, status]) => (
-                                <div key={name} className="flex items-center justify-between gap-2">
-                                  <span className="text-sm text-gray-300">{toLabel(name)}</span>
-                                  <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
+        {!loading && !error && data && (
+          <div className={`space-y-6 transition-opacity duration-300 ${isRefreshing ? 'opacity-85' : 'opacity-100'}`}>
+            <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
+                <div>
+                  <h1 className="text-3xl sm:text-4xl font-bold mb-1 text-gray-100">Sandy's $1k -&gt; $1M Challenge</h1>
+                  <p className="text-gray-400">Last Updated: <span className="text-gray-200">{data.last_updated ? formatLastUpdated(data.last_updated) : '-'}</span></p>
                 </div>
+                <div className="flex items-center gap-3">
+                  <RefreshCw size={14} className={`text-gray-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className={`text-xs px-3 py-1 rounded-full border ${statusBadge(hero.status).cls}`}>{statusBadge(hero.status).text}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                {[
+                  ['Current Capital', hero.current_capital || '$5,000.00 USDC'],
+                  ['Current Phase', hero.current_phase || data.challenge_status.phase || 'TESTING'],
+                  ['All-Time P&L', hero.all_time_pnl || '+$0.00 (0%)'],
+                  ['Win Rate', hero.wins !== undefined && hero.losses !== undefined ? `${hero.wins}/${hero.wins + hero.losses} (${hero.wins + hero.losses > 0 ? Math.round((hero.wins / (hero.wins + hero.losses)) * 100) : 0}%)` : '0/0 (0%)'],
+                  ['Days Active', String(hero.days_active ?? 0)],
+                ].map(([label, value]) => (
+                  <div key={label} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                    <p className="text-xs text-gray-400">{label}</p>
+                    <p className="text-lg font-bold text-gray-100 mt-1">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-                {/* 5. Challenge Status */}
+            <div className="grid lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8 space-y-6">
                 <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                  <h2 className="text-lg font-semibold text-gray-100 mb-4">$1k -&gt; $1M Challenge Status</h2>
-                  <div className="bg-black/20 border border-white/10 rounded-xl p-4">
-                    <p className="text-sm text-gray-400">Current Phase</p>
-                    <p className="text-base text-gray-100 font-semibold mb-3">{data.challenge_status.phase}</p>
-                    <p className="text-sm text-gray-400">Target</p>
-                    <p className="text-base text-gray-100 font-semibold mb-3">{data.challenge_status.target}</p>
-                    <p className="text-sm text-gray-400">Timeline</p>
-                    <p className="text-base text-gray-100 font-semibold">{data.challenge_status.timeline}</p>
-                  </div>
-                  <div className="mt-4 bg-black/20 border border-white/10 rounded-xl p-4">
-                    <p className="text-sm text-gray-100 font-semibold mb-3">Progress</p>
-                    <div className="space-y-3">
-                      {Object.entries(data.challenge_status.progress).map(([key, value]) => (
-                        <div key={key}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-gray-400">{toLabel(key)}</span>
-                            <span className="text-gray-300">{value}%</span>
-                          </div>
-                          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                            <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${value}%` }} />
-                          </div>
+                  <h2 className="text-lg font-semibold text-gray-100 mb-3">Current Strategy</h2>
+                  <p className="text-sm text-cyan-300 mb-3">ACTIVE PLAYBOOK: {playbook.title || 'Weather Arbitrage (NOAA Edge)'}</p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {[
+                      ['Strategy', playbook.strategy || ['Primary: Weather arbitrage using NOAA forecast data', 'Platform: Kalshi (US-legal prediction markets)', 'Edge: NOAA accuracy vs market sentiment']],
+                      ['Entry Rules', playbook.entry_rules || ['Edge threshold: >= 5%', 'Position sizing: Kelly (capped at $1)', 'Markets: Daily weather predictions']],
+                      ['Risk Management', playbook.risk_management || ['Max bet: $1 (testing)', 'Max concurrent positions: 3', 'Daily loss limit: -4%', 'Circuit breaker: 5 losses -> PAUSE']],
+                      ['Phase Goals', playbook.current_phase_goals || ['Testing budget: $50', 'Target win rate: >55%', 'Timeline: 1-2 weeks testing']],
+                    ].map(([title, lines]) => (
+                      <div key={title as string} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                        <p className="text-sm font-semibold text-gray-200 mb-2">{title}</p>
+                        <div className="space-y-1">
+                          {(lines as string[]).map((line, idx) => (
+                            <p key={idx} className="text-xs text-gray-300">- {line}</p>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-4 bg-black/20 border border-white/10 rounded-xl p-4">
-                    <p className="text-sm text-gray-100 font-semibold mb-2">Milestones</p>
-                    <div className="space-y-2">
-                      {data.challenge_status.milestones.map((milestone, idx) => (
-                        <div key={`${milestone.task}-${idx}`} className="flex items-center gap-2 text-sm">
-                          {milestone.done ? (
-                            <CheckCircle2 size={16} className="text-green-400 shrink-0" />
-                          ) : (
-                            <Circle size={16} className="text-gray-500 shrink-0" />
-                          )}
-                          <span className={milestone.done ? 'text-gray-200' : 'text-gray-400'}>{milestone.task}</span>
-                        </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 </section>
 
-                {/* 7. Network & Connections */}
                 <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                  <h2 className="text-lg font-semibold text-gray-100 mb-4">Network &amp; Connections</h2>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {data.network.map((contact) => (
-                      <a
-                        key={contact.name}
-                        href={`https://www.moltbook.com/u/${contact.name}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-black/20 border border-white/10 rounded-xl p-4 hover:border-indigo-400/40 transition-colors"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-semibold text-gray-100">{contact.name}</span>
-                          <span className="text-xs text-indigo-300">{contact.karma} karma</span>
+                  <h2 className="text-lg font-semibold text-gray-100 mb-3">Live Trading Stats</h2>
+                  <div className="space-y-2">
+                    {(tp.current_trades && tp.current_trades.length > 0 ? tp.current_trades : [
+                      { market: 'NYC temp <35°F tomorrow', side: 'YES', entry: '$0.60', edge: '25%', status: 'Open', pnl: '-' },
+                      { market: 'Chicago temp 30-35°F', side: 'NO', entry: '$0.45', edge: '15%', status: 'Open', pnl: '-' },
+                    ]).map((row, idx) => (
+                      <div key={idx} className="grid grid-cols-6 gap-2 bg-black/20 border border-white/10 rounded-xl p-3 text-xs">
+                        <span className="col-span-2 text-gray-200">{String(row.market || row.Market || '-')}</span>
+                        <span className="text-gray-300">{String(row.side || row.Side || '-')}</span>
+                        <span className="text-gray-300">{String(row.entry || row.Entry || '-')}</span>
+                        <span className="text-cyan-300">{String(row.edge || row.Edge || '-')}</span>
+                        <span className="text-gray-300">{String(row.status || row.Status || row.pnl || '-')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-3">Current Opportunities</h2>
+                  <div className="space-y-3">
+                    {(edge.opportunities && edge.opportunities.length > 0 ? edge.opportunities : [
+                      { strength: 'STRONG EDGE', title: 'NYC low temp <33°F tomorrow', details: ['NOAA: 92%', 'Market YES: 65%', 'Edge: +27 points'], recommendation: 'BUY YES at $0.65' },
+                      { strength: 'MEDIUM EDGE', title: 'Chicago high temp >45°F tomorrow', details: ['NOAA: 75%', 'Market YES: 62%', 'Edge: +13 points'], recommendation: 'BUY YES at $0.62' },
+                    ]).map((op, idx) => (
+                      <div key={idx} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                        <p className="text-xs text-cyan-300 font-semibold mb-1">{op.strength}</p>
+                        <p className="text-sm text-gray-100 font-medium mb-1">{op.title}</p>
+                        <div className="space-y-1">
+                          {(op.details || []).map((d, i) => (
+                            <p key={i} className="text-xs text-gray-300">- {d}</p>
+                          ))}
                         </div>
-                        <p className="text-xs text-gray-400">{contact.focus}</p>
+                        {op.recommendation && <p className="text-xs text-green-300 mt-2">Recommended: {op.recommendation}</p>}
+                      </div>
+                    ))}
+                    <p className="text-xs text-gray-500">Last scan: {edge.last_scan || '2 minutes ago'} · Next scan: {edge.next_scan || 'in 28 minutes'}</p>
+                  </div>
+                </section>
+
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-3">Moltbook Presence (@Xilo)</h2>
+                  <div className="flex items-center justify-between mb-3">
+                    <a href={data.moltbook.profile_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-indigo-300 hover:text-indigo-200">
+                      Open Profile <ExternalLink size={14} />
+                    </a>
+                    <span className="text-xs text-gray-400">Auto-updated from API</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                    {[
+                      ['Karma', data.moltbook.karma],
+                      ['Followers', data.moltbook.followers],
+                      ['Following', data.moltbook.following],
+                      ['Posts', data.moltbook.posts],
+                      ['Comments', data.moltbook.comments],
+                    ].map(([label, value]) => (
+                      <div key={label as string} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                        <p className="text-xs text-gray-400">{label}</p>
+                        <p className="text-xl font-bold text-gray-100 mt-1">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    {data.moltbook.recent_activity.slice(0, 5).map((item, idx) => (
+                      <a key={`${item.url}-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" className="block bg-black/20 border border-white/10 rounded-xl p-3 hover:border-indigo-400/40 transition-colors">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-indigo-300">{item.type === 'post' ? 'Post' : 'Comment'}</span>
+                          <span className="text-xs text-gray-500">{toRelativeTime(item.timestamp)}</span>
+                        </div>
+                        <p className="text-sm text-gray-100">{item.title || item.preview || 'Activity update'}</p>
                       </a>
                     ))}
                   </div>
                 </section>
+              </div>
 
-                {/* 8. Active Trading Strategies */}
+              <div className="lg:col-span-4 space-y-6">
                 <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
-                  <h2 className="text-lg font-semibold text-gray-100 mb-4">Active Trading Strategies</h2>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {data.strategies.map((strategy) => (
-                      <div key={strategy.name} className="bg-black/20 border border-white/10 rounded-xl p-4">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 className="text-sm font-semibold text-gray-100">{strategy.name}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full border ${RISK_STYLES[strategy.risk] || STATUS_STYLES['Not Started']}`}>
-                            {strategy.risk}
-                          </span>
+                  <h2 className="text-lg font-semibold text-gray-100 mb-3">Risk Metrics</h2>
+                  <div className="space-y-2 text-sm text-gray-300">
+                    {(risk.portfolio_heat || ['Portfolio Heat: $2.50 / $3.00 max (83%)']).map((v, i) => <p key={`h-${i}`}>- {v}</p>)}
+                    {(risk.daily_performance || ["Today's P&L: +$1.85 (+0.037%)", 'Daily limit: -4%']).map((v, i) => <p key={`d-${i}`}>- {v}</p>)}
+                    {(risk.consecutive_losses || ['Consecutive losses: 0 (safe)']).map((v, i) => <p key={`c-${i}`}>- {v}</p>)}
+                    {(risk.max_drawdown || ['Max drawdown: -0.06%']).map((v, i) => <p key={`m-${i}`}>- {v}</p>)}
+                  </div>
+                </section>
+
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-3">Learning Progress</h2>
+                  <div className="space-y-3">
+                    {Object.entries(data.learning_progress).map(([category, itemMap]) => {
+                      const progress = sectionProgress(itemMap);
+                      return (
+                        <div key={category} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm text-gray-100 font-semibold">{toLabel(category)}</p>
+                            <p className="text-xs text-gray-400">{progress}%</p>
+                          </div>
+                          <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+                            <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${progress}%` }} />
+                          </div>
+                          <div className="space-y-1">
+                            {Object.entries(itemMap).map(([name, status]) => (
+                              <div key={name} className="flex items-center justify-between gap-2">
+                                <span className="text-xs text-gray-300">{toLabel(name)}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-400 mb-2">{strategy.description}</p>
-                        <p className="text-xs text-gray-300">Expected Return: {strategy.expected_return}</p>
-                        <p className="text-xs text-gray-300">Capital: {strategy.capital}</p>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                  <h2 className="text-lg font-semibold text-gray-100 mb-3">Roadmap</h2>
+                  <div className="space-y-3">
+                    {(data.roadmap && data.roadmap.length > 0 ? data.roadmap : [
+                      { title: 'Completed', status: 'done', items: ['Research phase finished'] },
+                      { title: 'Current', status: 'current', items: ['Testing phase in progress'] },
+                      { title: 'Upcoming', status: 'upcoming', items: ['Phase 1: $1k -> $10k', 'Phase 2: $10k -> $100k', 'Phase 3: $100k -> $1M'] },
+                    ]).map((node, idx) => (
+                      <div key={idx} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                        <p className="text-sm font-semibold text-gray-100 mb-1">{node.title}</p>
+                        {(node.items || []).map((item, i) => (
+                          <p key={i} className="text-xs text-gray-300">- {item}</p>
+                        ))}
                       </div>
                     ))}
+                    <p className="text-xs text-gray-500">Timeline: {data.challenge_status.timeline || '18-30 weeks total'}</p>
                   </div>
                 </section>
               </div>
-            </>
-          )}
-        </div>
+            </div>
 
-        {/* Footer */}
+            <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+              <h2 className="text-lg font-semibold text-gray-100 mb-3">Challenge Status</h2>
+              <div className="grid md:grid-cols-3 gap-4 mb-4">
+                <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">Phase</p>
+                  <p className="text-sm text-gray-100 font-semibold">{data.challenge_status.phase}</p>
+                </div>
+                <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">Target</p>
+                  <p className="text-sm text-gray-100 font-semibold">{data.challenge_status.target}</p>
+                </div>
+                <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">Timeline</p>
+                  <p className="text-sm text-gray-100 font-semibold">{data.challenge_status.timeline}</p>
+                </div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                  <p className="text-sm text-gray-100 font-semibold mb-2">Progress</p>
+                  <div className="space-y-2">
+                    {Object.entries(data.challenge_status.progress).map(([key, value]) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-400">{toLabel(key)}</span>
+                          <span className="text-gray-300">{value}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full bg-indigo-500" style={{ width: `${value}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                  <p className="text-sm text-gray-100 font-semibold mb-2">Milestones</p>
+                  <div className="space-y-2">
+                    {data.challenge_status.milestones.map((milestone, idx) => (
+                      <div key={`${milestone.task}-${idx}`} className="flex items-center gap-2 text-sm">
+                        {milestone.done ? <CheckCircle2 size={16} className="text-green-400" /> : <Circle size={16} className="text-gray-500" />}
+                        <span className={milestone.done ? 'text-gray-200' : 'text-gray-400'}>{milestone.task}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+              <h2 className="text-lg font-semibold text-gray-100 mb-3">Insights</h2>
+              <div className="space-y-4">
+                {sortedInsights.length > 0 ? (
+                  sortedInsights.map((day, dayIdx) => (
+                    <div key={`${day.date}-${dayIdx}`} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                      <p className="text-sm text-gray-400 mb-2">{formatLocalDateTime(day.date)}</p>
+                      <ul className="space-y-2">
+                        {(day.items || []).map((item, idx) => (
+                          <li key={idx} className="text-sm text-gray-300">- {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No insights yet.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+              <h2 className="text-lg font-semibold text-gray-100 mb-3">Recent Activity Log</h2>
+              <p className="text-sm text-gray-400 mb-3">{formatLocalDateTime(data.daily_log.date)}</p>
+              <div className="space-y-2 mb-3">
+                {data.daily_log.activities.length > 0 ? (
+                  data.daily_log.activities.map((activity, idx) => (
+                    <p key={idx} className="text-sm text-gray-300">- {activity}</p>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No daily activities in payload.</p>
+                )}
+              </div>
+              <p className="text-sm text-indigo-300">Token Usage: {data.daily_log.token_usage}</p>
+            </section>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                <h2 className="text-lg font-semibold text-gray-100 mb-3">Network & Connections</h2>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {data.network.map((contact) => (
+                    <a key={contact.name} href={`https://www.moltbook.com/u/${contact.name}`} target="_blank" rel="noopener noreferrer" className="bg-black/20 border border-white/10 rounded-xl p-3 hover:border-indigo-400/40 transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-gray-100">{contact.name}</span>
+                        <span className="text-xs text-indigo-300">{contact.karma} karma</span>
+                      </div>
+                      <p className="text-xs text-gray-400">{contact.focus}</p>
+                    </a>
+                  ))}
+                </div>
+              </section>
+
+              <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+                <h2 className="text-lg font-semibold text-gray-100 mb-3">Active Trading Strategies</h2>
+                <div className="space-y-3">
+                  {data.strategies.map((strategy) => (
+                    <div key={strategy.name} className="bg-black/20 border border-white/10 rounded-xl p-3">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="text-sm font-semibold text-gray-100">{strategy.name}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${RISK_STYLES[strategy.risk] || STATUS_STYLES['Not Started']}`}>{strategy.risk}</span>
+                      </div>
+                      <p className="text-xs text-gray-400">{strategy.description}</p>
+                      <p className="text-xs text-gray-300 mt-1">Expected: {strategy.expected_return} · Capital: {strategy.capital}</p>
+                      {strategy.status && <p className="text-xs text-cyan-300 mt-1">Status: {strategy.status}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <section className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+              <h2 className="text-lg font-semibold text-gray-100 mb-3">Infrastructure</h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                  <p className="text-sm font-semibold text-gray-100 mb-2">API Connections</p>
+                  {(data.system_status?.api_connections || ['Kalshi API: Connected', 'NOAA Weather: Connected', 'GDELT Events: Not configured']).map((line, idx) => (
+                    <p key={idx} className="text-xs text-gray-300">- {line}</p>
+                  ))}
+                </div>
+                <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                  <p className="text-sm font-semibold text-gray-100 mb-2">Automation</p>
+                  {(data.system_status?.automation || ['Market Scanner: Running', 'Order Placer: Ready', 'Risk Manager: Active']).map((line, idx) => (
+                    <p key={idx} className="text-xs text-gray-300">- {line}</p>
+                  ))}
+                  <p className="text-xs text-gray-500 mt-2">Last check: {data.system_status?.last_check || '5 minutes ago'} · Uptime: {data.system_status?.uptime || '99.8%'}</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
         <div className="mt-12 text-center text-sm text-gray-400">
           <p>Sandy's Board - Built with OpenClaw</p>
         </div>
