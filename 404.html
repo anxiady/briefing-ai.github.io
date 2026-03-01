@@ -8,6 +8,12 @@
       // Converts path to query string so index.html can pick it up
       var pathSegmentsToKeep = 0;
       var l = window.location;
+
+      // Hard-block legacy dashboard URL at static level.
+      if (l.pathname === '/dashboard' || l.pathname === '/dashboard/') {
+        l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/');
+      }
+
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
         l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +

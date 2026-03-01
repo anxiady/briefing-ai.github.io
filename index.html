@@ -34,7 +34,14 @@
           var decoded = l.search.slice(1).split('&').map(function(s) {
             return s.replace(/~and~/g, '&')
           }).join('?');
+          if (decoded === '/dashboard' || decoded === '/dashboard/') {
+            window.location.replace('/');
+            return;
+          }
           window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+        if (l.pathname === '/dashboard' || l.pathname === '/dashboard/') {
+          window.location.replace('/');
         }
       }(window.location))
     </script>
